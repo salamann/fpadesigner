@@ -52,7 +52,7 @@ class wing(object):
             pass
         elif optflag == 0:
             self.shapeData = data[9:]
-            wingshape()
+            self.wingshape()
 
     def wingshape(self):
 
@@ -84,9 +84,9 @@ class wing(object):
             for i in range(len(spanlambda)-1):
                 if spanratio[i]*self.span/2.0 <= yy and yy < spanratio[i + 1]*self.span/2.0:
                     chordArray2.append(self.calc_chord(spanlambda[i],spanlambda[i + 1],spanratio[i]*self.span/2.0,spanratio[i + 1]*self.span/2.0,cr,yy))
-		#スパン位置の配列
+        #スパン位置の配列
         self.yy = y
-		#コード長の配列
+        #コード長の配列
         self.chordArray2 = np.array(chordArray2)
 
         figx = cr * (1.0 - np.array(spanlambda))
@@ -155,7 +155,6 @@ class wing(object):
         pl.plot(self.yy,self.thickness)
         pl.savefig(self.dirname + "/" +"thickness")
 
-
     # Analyzes the wing object
     # -----------------------------------------------
     # velocity   - airspeed
@@ -179,6 +178,11 @@ class wing(object):
 
     #揚力傾斜をRe数ごと(スパン方向ごと)に計算
     def calc_liftSlopeArray(self):
+        """
+        This method is to calculate lift slope
+        for each span position using reynolds number.
+        :return:
+        """
         from scipy import stats
         datas = [self.calc_Interpolate(i) for i in self.Re/10**6.]
 
@@ -191,8 +195,12 @@ class wing(object):
             liftSlopeArray.append(slope)
         self.liftSlopeArray = liftSlopeArray
 
-    #ゼロ揚力角を計算
-    def calc_zeroLiftAngle(self,data):
+    def calc_zeroLiftAngle(self, data):
+        """
+        This method is to calculate zero lift angle of attack.
+        :param data:
+        :return:
+        """
         from scipy import stats
 
         #揚力傾斜を出すのに使う迎角範囲
@@ -325,7 +333,6 @@ class wing(object):
             #これを入れると航空力学の基礎p.147の連立方程式が再現できる
             #print tmp / righthand
 
-
             # 絶対迎角
             self.calc_zeroliftangleArray()
             # absoluteAlpha = 1.0で航空力学の基礎第2版 p.147の計算になる
@@ -393,7 +400,7 @@ class wing(object):
         self.circDist = circDist
         self.clDist = clDist
 
-		#循環分布からΓ-yの楕円等価面積を求める
+        #循環分布からΓ-yの楕円等価面積を求める
 		#循環の積分
         #numpy.trapzは台形近似で区分求積する。
         #Ellipse distribution will be calculated by circulation distribution.
@@ -458,12 +465,15 @@ class wing(object):
         #return self.eval_func*10
         #return 1./round(self.L*9.80665/self.D,2)
 
-    def calcTrimdrag():
+    def calcTrimdrag(self):
         airplaneCG=0.3
 
 
-    #翼面積、速度、重量が与えられたときのCLを計算するための関数
-    def solve_CL(self,angle):
+    def solve_CL(self, angle):
+        """
+        This method is to calculate lift coefficient,
+        where wing area, airspeed, and weight are given.
+        """
         self.calc_reynolds(self.velocity, self.temperature)
         self.calc_liftSlopeArray()
         self.calc_zeroliftangleArray()
@@ -483,11 +493,13 @@ class wing(object):
 
         optimize.brenth(self.solve_CL,-5,10)
 
-##        L = self.L/9.81
+    ##        L = self.L/9.81
 
-
-    """csvfile, number of cell, design cruise speed, ambient temperature"""
     def calc_variedaoa(self,velocity,temperature,aoaarray):
+        """csvfile, number of cell, design cruise speed, ambient temperature
+
+
+        """
         #testWing = wing(wingcsv,ncell)
         self.calc_reynolds(velocity, temperature)
 
