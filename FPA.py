@@ -1,31 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#-----------------
-#importing numerical calculation modules
-#-----------------
+
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as plt
 from scipy.linalg import solve
 from scipy.optimize import minimize
 from scipy.optimize import basinhopping
-
-#-----------------
-#importing handmade modules
-#-----------------
 import iomod
 import postmod
 import weight
 
-
-# Load wing configuration file and create "wing" instance
-#
-# -----------------------------------------------
-# sourceFile  - source csv file created by following structure
-# analyzeStep - analyze slice steps スパン方向の分割数
-# -----------------------------------------------
-#
 class wing(object):
+    """
+    Load wing configuration file and create "wing" instance
+
+    -----------------------------------------------
+    sourceFile  - source csv file created by following structure
+    analyzeStep - analyze slice steps スパン方向の分割数
+    -----------------------------------------------
+    """
     def __init__(self, sourceFile, halfStep, surface, aspect, optflag=0):
         self._sourceFile = sourceFile
         self.halfStep = halfStep
@@ -152,31 +146,21 @@ class wing(object):
         #self.thick36 = [i * thickness36 for i in self.chordArray2]
         #print self.thick36
 
-        pl.plot(self.yy,self.thickness)
-        pl.savefig(self.dirname + "/" +"thickness")
+        plt.plot(self.yy,self.thickness)
+        plt.savefig(self.dirname + "/" +"thickness")
 
-    # Analyzes the wing object
-    # -----------------------------------------------
-    # velocity   - airspeed
-    # temperature - temperature
-    # angle      - angle of flight
-    # -----------------------------------------------
-    #
-    #
     def calc_reynolds(self, velocity=0, temperature=0):
-    # ----------- >> calc Reynolds array ------------------
-        #self.temperature = temperature
-        #self.velocity = velocity
+        """
+        Calculate reynolds number.
+        :param velocity:
+        :param temperature:
+        :return:
+        """
         kine_vis = 1.34 * 10 ** - 5. + 9.31477 * 10 ** - 8. * self.temperature
-        #print "velo",self.velocity
-        #print "kine_vis", kine_vis
-        #print self.chordArray2
         self.Re = np.array(self.chordArray2) * self.velocity / kine_vis
         self.airDensity = 1.28912 - 0.004122391 * self.temperature
         return self.Re
-    # ----------- calc Reynolds array << ------------------
 
-    #揚力傾斜をRe数ごと(スパン方向ごと)に計算
     def calc_liftSlopeArray(self):
         """
         This method is to calculate lift slope
@@ -541,55 +525,55 @@ class wing(object):
 
         x2 = x1 + x1[::-1]
         y2 = y1 + y2[::-1]
-        pl.figure(figsize=(12,4))
+        plt.figure(figsize=(12,4))
         self.planx = x2
         self.plany = y2
-        pl.plot(x2,y2)
+        plt.plot(x2,y2)
         xcp0 = self.chordArray2[len(self.xcpArray)-1] * (1.0 - self.xcpArray[len(self.xcpArray)-1])
-        pl.plot([0,self.span/2.],[xcp0,xcp0])
-        pl.axis("equal")
-        pl.xlabel("y [m]")
-        pl.ylabel("x [m]")
-        pl.legend(("planform","pressure center"))
-        pl.savefig(self.dirname + "/" +"testwing")
+        plt.plot([0,self.span/2.],[xcp0,xcp0])
+        plt.axis("equal")
+        plt.xlabel("y [m]")
+        plt.ylabel("x [m]")
+        plt.legend(("planform","pressure center"))
+        plt.savefig(self.dirname + "/" +"testwing")
 #        pl.clf()
 
 
 class body(object):
-    def __init__(self,velocity,temperature):
+    def __init__(self, velocity, temperature):
         self.temperature = temperature
         self.velocity = velocity
         kine_vis = 1.34 * 10 ** - 5. + 9.31477 * 10 ** - 8. * self.temperature
         self.airDensity = 1.28912 - 0.004122391 * self.temperature
         self.dynpres = 0.5 * self.airDensity * self.velocity ** 2.0
 
-    def fairdragcalc(self,fairArea):
+    def fairdragcalc(self, fairArea):
         """CD=0.10 : F-TEC technical report"""
         """CD=0.20 : T-MIT windtunnel data"""
         CDfair = 0.15
         self.fairringDrag = CDfair * fairArea * self.dynpres
         self.fairringPower = self.fairringDrag * self.velocity
 
-    def framedragcalc(self,framearea):
+    def framedragcalc(self, framearea):
         CDframe = 0.1
         self.frameDrag = CDframe * framearea * self.dynpres
         self.framePower = self.frameDrag * self.velocity
 
 
 class tail(object):
-    def __init__(self,velocity,temperature):
+    def __init__(self, velocity, temperature):
         self.temperature = temperature
         self.velocity = velocity
         kine_vis = 1.34 * 10 ** - 5. + 9.31477 * 10 ** - 8. * self.temperature
         self.airDensity = 1.28912 - 0.004122391 * self.temperature
         self.dynpres = 0.5 * self.airDensity * self.velocity ** 2.0
 
-    def calc_htaildrag(self,htailArea):
+    def calc_htaildrag(self, htailArea):
         CDhtail = 0.008
         self.htailDrag = CDhtail * htailArea * self.dynpres
         self.htailPower = self.htailDrag * self.velocity
 
-    def calc_vtaildrag(self,vtailArea):
+    def calc_vtaildrag(self, vtailArea):
         CDvtail = 0.008
         self.vtailDrag = CDvtail * vtailArea * self.dynpres
         self.vtailPower = self.vtailDrag * self.velocity
@@ -666,35 +650,31 @@ if __name__ == '__main__':
             power = iomod.gen_result(testWing,testBody,testTail)
             zz.append([j, k, power])
         #"""
-            pl.clf()
-            pl.figure(figsize=(8,8))
-            pl.plot(testWing.CD,testWing.CL,'o')
+            plt.clf()
+            plt.figure(figsize=(8,8))
+            plt.plot(testWing.CD,testWing.CL,'o')
 
             testWing.calc_variedaoa(velocity,temperature,aoaarray)
-            pl.plot(testWing.CDarray,testWing.CLarray)
-            pl.plot(testWing.xmaxLDline,testWing.ymaxLDline)
-            pl.xlim(xmin=0)
-            pl.ylim(ymin=0)
-            pl.xlabel("CD")
-            pl.ylabel("CL")
-            pl.legend(("Design Cruise Point","Polar Curve","maxL/D line"))
-            pl.savefig(testWing.dirname + "/" +"PolarCurbe.png")
+            plt.plot(testWing.CDarray,testWing.CLarray)
+            plt.plot(testWing.xmaxLDline,testWing.ymaxLDline)
+            plt.xlim(xmin=0)
+            plt.ylim(ymin=0)
+            plt.xlabel("CD")
+            plt.ylabel("CL")
+            plt.legend(("Design Cruise Point","Polar Curve","maxL/D line"))
+            plt.savefig(testWing.dirname + "/" +"PolarCurbe.png")
 
-            pl.clf()
-            pl.plot(aoaarray,testWing.CDarray)
-            pl.savefig(testWing.dirname + "/" +"alpha-CD.png")
+            plt.clf()
+            plt.plot(aoaarray,testWing.CDarray)
+            plt.savefig(testWing.dirname + "/" +"alpha-CD.png")
 
-            pl.clf()
-            pl.plot(aoaarray,testWing.CLarray)
-            pl.savefig(testWing.dirname + "/" +"alpha-CL.png")
-
-
+            plt.clf()
+            plt.plot(aoaarray,testWing.CLarray)
+            plt.savefig(testWing.dirname + "/" +"alpha-CL.png")
 
     print zz
     zz = np.array(zz).transpose()
-    CS = pl.contourf(zz[0], zz[1], zz[2])
-    pl.clabel(CS, inline=1, fontsize=10)
-    pl.title('Required power by AR and S')
-    pl.savefig("contour.png")
-
-    #"""
+    CS = plt.contourf(zz[0], zz[1], zz[2])
+    plt.clabel(CS, inline=1, fontsize=10)
+    plt.title('Required power by AR and S')
+    plt.savefig("contour.png")

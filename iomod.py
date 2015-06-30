@@ -2,15 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import pylab as pl
-from scipy.linalg import solve
 
-# Reads csv file
-# All numerical data will be converted to float, otherwise string
-#
-# filename - filepath and filename
-#
 def readcsv(filename):
+    """
+    Read csv file.
+    All numerical data will be converted to float, otherwise string.
+
+    filename - filepath and filename
+    """
     import csv
     data = []
     csvfile = file(filename)
@@ -64,20 +63,15 @@ def gen_result(testWing,testBody,testTail):
     str1 += "WingPower = %0.3f[W]" % testWing.W
     str1 += br
 
-
-
     str1 += "Fair Power = %0.3f[W]" % testBody.fairringPower
     str1 += br
     str1 += "Frame Power = %0.3f[W]" % testBody.framePower
     str1 += br
 
-
-
     str1 += "htail Power = %0.3f[W]" % testTail.htailPower
     str1 += br
     str1 += "vtail Power = %0.3f[W]" % testTail.vtailPower
     str1 += br
-
 
     RequiredPower = testBody.framePower + testBody.fairringPower + testWing.W + testTail.htailPower + testTail.vtailPower
     str1 += "Required Power = %0.3f[W]" % RequiredPower
