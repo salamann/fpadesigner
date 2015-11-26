@@ -5,23 +5,95 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.linalg import solve
 from scipy import stats
-from scipy.interpolate import interp1d, interp2d
+from scipy.interpolate import interp2d, interp1d
+import os
 
 import io_fpa
 from aerodynamics_2d import read_xflr5_data
-import weight
 # Load wing configuration file and create "wing" instance
 #
 # -----------------------------------------------
 # sourceFile  - source csv file created by following structure
 # analyzeStep - analyze slice steps スパン方向の分割数
 # -----------------------------------------------
-#
-# from runner import velocity, temperature, aoaarray, zz, testWing, res, x1, x2, x3, x4, x5, x6, x
+
+
+def calc_thickness_of_wing(XFOILdirectory, chordArray2):
+    """
+    calculation wing thickness list
+    """
+    # open airfoil data
+    data = io_fpa.open2read(u"{}\\foil.dat".format(XFOILdirectory))
+
+    # make airfoil list
+    xlist = [float(i.split()[0]) for i in data[1:]]
+    ylist = [float(i.split()[1]) for i in data[1:]]
+
+    # divide upper and lower
+    zeropoint = None
+    for i in range(len(xlist)):
+        if xlist[i] == ylist[i]:
+            zeropoint = i
+
+    upperx = np.array(xlist[:zeropoint+1])[::-1]
+    uppery = np.array(ylist[:zeropoint+1])[::-1]
+
+    lowerx = np.array(xlist[zeropoint:])
+    lowery = np.array(ylist[zeropoint:])
+
+    # interpolate uppwer and lower file in order to be able to different yposition of both upper and lower
+    linear_interp_upper = interp1d(upperx, uppery)
+    linear_interp_lower = interp1d(lowerx, lowery)
+
+    xx = np.linspace(0., 1., 100)
+    newylower = linear_interp_lower(xx)
+    newyupper = linear_interp_upper(xx)
+
+    thickness = newyupper - newylower
+    maxthickness = max(thickness)
+
+    # make thickness list of span direction
+    thickness = [i * maxthickness for i in chordArray2]
+    return thickness
+    #self.thick36 = [i * thickness36 for i in self.chordArray2]
+
+    # plt.plot(self.yy, self.thickness)
+    # plt.savefig(self.dirname + "/" + "thickness")
+
+
+def calc_chord(lambda1, lambda2, y1, y2, Cr, yy):
+    """
+    コード長を求めるメソッド
+    :param lambda1: 一つ前のテーパ比
+    :param lambda2: 1つ後のテーパ比
+    :param y1: 一つ前のスパン
+    :param y2: 1つ後のスパン
+    :param Cr: ルートコード長
+    :param yy: 求めるスパン長
+    :return:
+    """
+    return lambda1 * Cr - (yy - y1) * (lambda1 - lambda2) / (y2 - y1) * Cr
 
 
 class Wing(object):
     def __init__(self, sourceFile, halfStep, surface, aspect, optflag=0):
+        self.aerodynamics_2d_data = None
+        self.lift_slope_array = None
+        self.zero_lift_angle_array = None
+        self.local_angle = None
+        self.xcp_array = None
+        self.chord_cp_array = None
+        self.cd0_array = None
+        self.span = None
+        self.cr = None
+        self.span_lambda = None
+        self.yy = None
+        self.chord_array = None
+        self.temperature = None
+        self.velocity = None
+        self.Re = None
+        self.airDensity = None
+
         self._sourceFile = sourceFile
         self.halfStep = halfStep
         data = io_fpa.readcsv(self._sourceFile)
@@ -35,64 +107,56 @@ class Wing(object):
 ##            pass#self.shapeData = directshape
 ##        elif optflag == 0:
 ##            self.shapeData = data[9:]
-        import os
         self.dirname = str(self.XFOILdirectory) + "S" + str(self.surface) + "AR" + str(self.aspect)
-        try:
+        if not os.path.isdir(self.dirname):
             os.mkdir(self.dirname)
-        except:
-            pass
 
         if optflag == 1:
             pass
         elif optflag == 0:
             self.shapeData = data[9:]
-            self.wingshape()
-        self.aerodynamics_2d_data = None
-        self.lift_slope_array = None
-        self.zero_lift_angle_array = None
-        self.local_angle = None
-        self.xcp_array = None
-        self.chord_cp_array = None
+            self.wing_shape()
 
-    def wingshape(self):
+    def wing_shape(self):
         """
         calc the chord array according to slices
         """
-        #スパン長の計算
+        # スパン長の計算
         span = np.sqrt(self.aspect * self.surface)
         self.span = span
 
-        #ルートコード長crの計算
+        # ルートコード長crの計算
         bunbo = 0.
         for i in range(0, len(self.shapeData)-1, 1):
-            bunbo += (self.shapeData[i][1]/100. + self.shapeData[i+1][1]/100.) * (self.shapeData[i+1][0]/100. - self.shapeData[i][0]/100.)
+            bunbo += (self.shapeData[i][1]/100. + self.shapeData[i+1][1]/100.) \
+                     * (self.shapeData[i+1][0]/100. - self.shapeData[i][0]/100.)
         bunbo = bunbo * span / 2.
         cr = self.surface / bunbo
         self.cr = cr
 
-
-        #平面形のラムダとスパン位置のリスト作成
+        # 平面形のラムダとスパン位置のリスト作成
         spanlambda = [self.shapeData[i][1]/100. for i in range(len(self.shapeData))]
         spanratio = [self.shapeData[i][0]/100. for i in range(len(self.shapeData))]
-        self.spanlambda = spanlambda
+        self.span_lambda = spanlambda
 
-        #スパン位置
-        y = [(self.span / 2.0) *np.cos((i + 1) * (np.pi / 2.0) / (self.halfStep)) for i in range(self.halfStep)]
+        # スパン位置
+        y = [(self.span / 2.0) * np.cos((i + 1) * (np.pi / 2.0) / self.halfStep) for i in range(self.halfStep)]
 
-        #コード長の配列 cosθ基準
-        chordArray2 = []
+        # コード長の配列 cosθ基準
+        chord_array = []
         for yy in y:
             for i in range(len(spanlambda)-1):
-                if spanratio[i]*self.span/2.0 <= yy and yy < spanratio[i + 1]*self.span/2.0:
-                    chordArray2.append(self.calc_chord(spanlambda[i],
-                                                       spanlambda[i + 1],
-                                                       spanratio[i]*self.span/2.0,
-                                                       spanratio[i + 1]*self.span/2.0,
-                                                       cr, yy))
-        #スパン位置の配列
+                if spanratio[i] * self.span/2.0 <= yy < spanratio[i + 1]*self.span/2.0:
+                    chord_array.append(calc_chord(spanlambda[i],
+                                                  spanlambda[i + 1],
+                                                  spanratio[i]*self.span/2.0,
+                                                  spanratio[i + 1]*self.span/2.0,
+                                                  cr,
+                                                  yy))
+        # スパン位置の配列
         self.yy = y
-        #コード長の配列
-        self.chordArray2 = np.array(chordArray2)
+        # コード長の配列
+        self.chord_array = np.array(chord_array)
 
         figx = cr * (1.0 - np.array(spanlambda))
         figy = self.span / 2.0 * np.array(spanratio)
@@ -110,68 +174,17 @@ class Wing(object):
         self.figxx = figxx
         self.figyy = figyy
 
-        self.calc_wingthickness()
-    """
-    コード長を求めるメソッド
-    lambda1:一つ前のテーパ比,lambda2:1つ後のテーパ比,y1:一つ前のスパン,y2:1つ後のスパン
-    Cr:ルートコード長、yy:求めるスパン長
-    """
-    def calc_chord(self, lambda1, lambda2, y1, y2, Cr, yy):
-        return lambda1 * Cr - (yy - y1) * (lambda1 - lambda2) / (y2 - y1) * Cr
+        calc_thickness_of_wing(self.XFOILdirectory, self.chord_array)
 
-    def calc_wingthickness(self):
-        """calculation wing thickness list"""
-        from scipy.interpolate import interp1d
+    def set_temperature(self, temperature):
+        self.temperature = temperature
 
-        #open airfoil data
-        data = io_fpa.open2read(self.XFOILdirectory + "/" + "foil.dat")
+    def set_velovity(self, velocity):
+        self.velocity = velocity
 
-        #make airfoil list
-        xlist = [float(i.split()[0]) for i in data[1:]]
-        ylist = [float(i.split()[1]) for i in data[1:]]
-
-        #divide upper and lower
-        for i in range(len(xlist)):
-            if xlist[i] == ylist[i]:
-                zeropoint = i
-        upperx = np.array(xlist[:zeropoint+1])[::-1]
-        uppery = np.array(ylist[:zeropoint+1])[::-1]
-
-        lowerx = np.array(xlist[zeropoint:])
-        lowery = np.array(ylist[zeropoint:])
-
-        #interpolate uppwer and lower file in order to be able to different yposition of both upper and lower
-        linear_interp_upper = interp1d(upperx, uppery)
-        linear_interp_lower = interp1d(lowerx, lowery)
-##
-        xx = np.linspace(0., 1., 100)
-        newylower = linear_interp_lower(xx)
-        newyupper = linear_interp_upper(xx)
-
-        thickness = newyupper - newylower
-        maxthickness = max(thickness)
-        #thickness36 = thickness[36]
-        #print thickness36
-
-        #make thickness list of span direction
-        self.thickness = [i * maxthickness for i in self.chordArray2]
-        #self.thick36 = [i * thickness36 for i in self.chordArray2]
-        #print self.thick36
-
-        plt.plot(self.yy, self.thickness)
-        plt.savefig(self.dirname + "/" + "thickness")
-
-    # Analyzes the wing object
-    # -----------------------------------------------
-    # velocity   - airspeed
-    # temperature - temperature
-    # angle      - angle of flight
-    # -----------------------------------------------
-    #
-    #
-    def calc_reynolds(self, velocity=0, temperature=0):
+    def calc_reynolds(self):
         kine_vis = 1.34 * 10 ** - 5. + 9.31477 * 10 ** - 8. * self.temperature
-        self.Re = np.array(self.chordArray2) * self.velocity / kine_vis
+        self.Re = np.array(self.chord_array) * self.velocity / kine_vis
         self.airDensity = 1.28912 - 0.004122391 * self.temperature
         return self.Re
 
@@ -220,7 +233,7 @@ class Wing(object):
         cd0_array = []
         for local_angle, reynolds_number in zip(local_angles, self.Re):
             cd0_array.append(func(np.radians(local_angle), reynolds_number)[0])
-        self.cd0Array = cd0_array
+        self.cd0_array = cd0_array
 
     def calc_xcp_array(self):
         """
@@ -236,9 +249,9 @@ class Wing(object):
         for localangle, reynolds_number in zip(local_angles, self.Re):
             xcp_array.append(func(np.radians(localangle), reynolds_number)[0])
         self.xcp_array = xcp_array
-        self.chord_cp_array = xcp_array * self.chordArray2
+        self.chord_cp_array = xcp_array * self.chord_array
 
-    def calc_downwash(self, thetas, An):
+    def calc_down_wash(self, thetas, An):
         """
         #吹き下ろしの計算
         #航空力学の基礎第2版 p.141 式3.97より
@@ -249,10 +262,10 @@ class Wing(object):
             dwArray.append(dw)
         self.dwArray = dwArray
 
-    """
-    calculation induced alpha [radians]
-    """
-    def calc_inducedAoa(self):
+    def calc_induced_angle_of_attack(self):
+        """
+        calculation induced alpha [radians]
+        """
         inducedAoa = np.array(self.dwArray) / self.velocity
         self.inducedAoa = inducedAoa
 
@@ -262,51 +275,50 @@ class Wing(object):
     def calc_CL_Cdi_CD(self, angle, oddOReven=1):
         self.angle = angle
         self.oddOReven = oddOReven
-        #航空力学の基礎第2版 p.142 式3.99の下の式より
-        #slopeはRe数ごとに与えることにした
+        # 航空力学の基礎第2版 p.142 式3.99の下の式より
+        # slopeはRe数ごとに与えることにした
 
         # μの計算。
         # self.liftSlopeArray[i] -> 5.5 で航空力学の基礎第2版 p.147の計算になる
         self.calc_lift_slope_and_zero_lift_array()
-        u = [self.lift_slope_array[i] * self.chordArray2[i] / 4.0 / self.span for i in range(len(self.chordArray2))]
+        u = [self.lift_slope_array[i] * self.chord_array[i] / 4.0 / self.span for i in range(len(self.chord_array))]
 
         # 絶対迎角
         # self.calc_zero_lift_angle_array()
-        #θの設定、θ[0]はpi/n, θ[1]は2pi/n, θ[2]は3pi/n・・・θ[ラスト]はpi/2
-        thetas = [float(i)/(self.halfStep) * np.pi / 2.0 for i in range(1, self.halfStep+1)]
+        # θの設定、θ[0]はpi/n, θ[1]は2pi/n, θ[2]は3pi/n・・・θ[ラスト]はpi/2
+        thetas = [float(i)/self.halfStep * np.pi / 2.0 for i in range(1, self.halfStep+1)]
 
-        #行列を作る計算
-        lmatrix = []
-        rmatrix = []
+        # 行列を作る計算
+        left_matrix = []
+        right_matrix = []
         i = 0
         for theta in thetas:
             tmp = []
             for n in range(1, self.halfStep * 2, oddOReven+1):
-
                 tmp.append((n * u[i] + np.sin(theta)) * np.sin(n*theta))
-            righthand = u[i] * np.sin(theta)
-            lmatrix.append(tmp / righthand)
+            right_hand_term = u[i] * np.sin(theta)
+            left_matrix.append(np.array(tmp) / right_hand_term)
 
-            #これを入れると航空力学の基礎p.147の連立方程式が再現できる
-            #print tmp / righthand
+            # これを入れると航空力学の基礎p.147の連立方程式が再現できる
+            # print tmp / righthand
 
             # absoluteAlpha = 1.0で航空力学の基礎第2版 p.147の計算になる
             absoluteAlpha = np.radians(self.angle) - self.zero_lift_angle_array[i]
-            #absoluteAlpha = 1.0
-            rmatrix.append(absoluteAlpha)
+            # absoluteAlpha = 1.0
+            right_matrix.append(absoluteAlpha)
 
             i += 1
 
-        #連立方程式を行列を使って解く
-        An = solve(np.array(lmatrix), np.array(rmatrix))
-        #これをいれると航空力学の基礎p.147のAnの値がでる
+        # 連立方程式を行列を使って解く
+        An = solve(np.array(left_matrix), np.array(right_matrix))
+        # これをいれると航空力学の基礎p.147のAnの値がでる
 
         # calc CL
         self.CL = np.pi*self.aspect*An[0]
 
         # calc Cdi
         sigma = 0
-        #航空力学の基礎第2版 p.147 式3.122の下の式より3からはじめる
+        # 航空力学の基礎第2版 p.147 式3.122の下の式より3からはじめる
 
         j = 3
         for i in range(self.oddOReven, self.halfStep):
@@ -315,94 +327,87 @@ class Wing(object):
 
         self.Cdi = (1.0 + sigma)*self.CL**2.0/np.pi/self.aspect
 
-        #donw washと誘導迎角の計算
-        self.calc_downwash(thetas,An)
-        self.calc_inducedAoa()
-        #new angleは吹き下ろしを考慮した迎角
-##        newangle = self.angle - np.degrees(self.inducedAoa)
+        # donw washと誘導迎角の計算
+        self.calc_down_wash(thetas, An)
+        self.calc_induced_angle_of_attack()
+        # new angleは吹き下ろしを考慮した迎角
+        # newangle = self.angle - np.degrees(self.inducedAoa)
 
         self.set_local_angle()
         self.calc_cd0_array()
-        #CD0の計算
-        #calc CD2
+        # CD0の計算
+        # calc CD2
         deltaD = []
-        for i in range(len(self.chordArray2)):
+        for i in range(len(self.chord_array)):
             if i == 0:
-                deltaD.append((self.cr * self.spanlambda[len(self.spanlambda)-1] + self.chordArray2[0]) * (self.span/2.0 - self.yy[i]) * 0.5 * self.cd0Array[0])
+                deltaD.append((self.cr * self.span_lambda[len(self.span_lambda) - 1] + self.chord_array[0]) *
+                              (self.span / 2.0 - self.yy[i]) * 0.5 * self.cd0_array[0])
             else:
-                deltaD.append((self.chordArray2[i-1] + self.chordArray2[i]) * (self.yy[i-1] - self.yy[i]) * 0.5 * (self.cd0Array[i-1] + self.cd0Array[i])/2.0)
+                deltaD.append((self.chord_array[i - 1] + self.chord_array[i]) *
+                              (self.yy[i - 1] - self.yy[i]) * 0.5 *
+                              (self.cd0_array[i - 1] + self.cd0_array[i]) / 2.0)
         D2 = 0.5 * self.airDensity * self.velocity ** 2.0 * sum(deltaD)
         dCD = D2 / (0.5 * self.airDensity * self.velocity ** 2.0 * self.surface / 2.0)
 
-        #風圧中心の計算
+        # 風圧中心の計算
         self.calc_xcp_array()
 
-        #スパン方向の揚力係数・循環・揚力計算
+        # スパン方向の揚力係数・循環・揚力計算
         circDist = []
         clDist = []
         j = 0
         for theta in thetas:
-            summation = sum([An[i] * np.sin((2*i + 1) * theta) for i in range(0,self.halfStep)])
+            summation = sum([An[i] * np.sin((2*i + 1) * theta) for i in range(0, self.halfStep)])
 
-            #循環の計算
+            # 循環の計算
             circ = 2.0 * self.span * self.velocity * summation
             circDist.append(circ)
 
-            #局所揚力係数の計算
-            cllocal = 4.0 * self.span / self.chordArray2[j] * summation
+            # 局所揚力係数の計算
+            cllocal = 4.0 * self.span / self.chord_array[j] * summation
             clDist.append(cllocal)
             j += 1
 
         self.circDist = circDist
         self.clDist = clDist
 
-        #循環分布からΓ-yの楕円等価面積を求める
-		#循環の積分
-        #numpy.trapzは台形近似で区分求積する。
-        #Ellipse distribution will be calculated by circulation distribution.
-        #numerical integration will be ensured by numpy.trapz using trapezoital approzimation.
+        # 循環分布からΓ-yの楕円等価面積を求める
+        # 循環の積分
+        # numpy.trapzは台形近似で区分求積する。
+        # Ellipse distribution will be calculated by circulation distribution.
+        # numerical integration will be ensured by numpy.trapz using trapezoital approzimation.
         sum_gamma1 = -np.trapz(self.circDist,self.yy)
         minor_axis = 8./np.pi/self.span * sum_gamma1
         self.ellipse = minor_axis*(1.-np.array(self.yy)**2./(self.span/2.)**2.)**0.5
-        self.eval_func = -np.trapz((self.circDist - self.ellipse)**2.,self.yy)
-        #print self.eval_func
+        self.eval_func = -np.trapz((self.circDist - self.ellipse)**2., self.yy)
+        # print self.eval_func
 
-
-
-        dL = 0.5 * self.airDensity * self.velocity **2.0 * self.chordArray2 * clDist
+        dL = 0.5 * self.airDensity * self.velocity ** 2.0 * self.chord_array * clDist
 
         self.dL = dL
 
-        #吹き下ろしの計算
-        #print "---dw---",self.dwArray
-        #誘導抵抗以外の抵抗：CD0
+        # 吹き下ろしの計算
+        # print "---dw---",self.dwArray
+        # 誘導抵抗以外の抵抗：CD0
         self.CD0 = dCD
         self.CD = dCD + self.Cdi
 
+        # 揚力の計算：単位はNで出る
 
-
-    #揚力の計算：単位はNで出る
-
-##    def calc_L(self):
-        self.L = 0.5*self.airDensity*self.velocity**2.0*self.surface*self.CL*np.cos(np.radians(self.dihedral))
+        # def calc_L(self):
+        self.L = 0.5 * self.airDensity * self.velocity ** 2.0 * self.surface * self.CL * \
+                 np.cos(np.radians(self.dihedral))
         self.L = self.L / 9.80665
 
-    #抵抗の計算：単位はNで出る
-##    def calc_D(self):
-        self.D = 0.5*self.airDensity*self.velocity**2.0*self.surface*self.CD
+        # 抵抗の計算：単位はNで出る
+        # def calc_D(self):
+        self.D = 0.5 * self.airDensity * self.velocity ** 2.0 * self.surface * self.CD
 
-    #ワット数の計算：単位はｗ
-##    def calc_W(self):
+        # ワット数の計算：単位はｗ
+        # def calc_W(self):
         self.W = self.D * self.velocity
 
-##
-##    def calc_all(self, angle, Reynolds):
-##        self.calc_liftSlope(Reynolds)
-##        self.calc_zeroLiftAngle()
-##        self.calc_CL_Cdi_CD(angle)
-
-
-    #Calculating integration of circulation
+    # Calculating integration of circulation
     def opt_circ(self, x):
         #self.shapeData = [[0.0, 100.0], [40.0, 100], [50., x[0]],[60, x[1]],[70, x[2]],[80, x[3]],[90, x[4]],[95, x[5]], [100.0, x[6]]]
         self.shapeData = [[0.0, 100.0],
@@ -413,15 +418,14 @@ class Wing(object):
                           [90, x[3]],
                           [95, x[4]],
                           [100.0, x[5]]]
-        self.wingshape()
-        #print self.chordArray2
-        self.calc_reynolds(self.velocity, self.temperature)
+        self.wing_shape()
+        self.calc_reynolds()
         self.calc_lift_slope_and_zero_lift_array()
         # self.calc_zero_lift_angle_array()
         self.calc_CL_Cdi_CD(3.)
         #print "calculating...",round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(x[6],1),round(self.L*9.80665/self.D,2)
-        print "calculating...", round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(self.L*9.80665/self.D,2), round(self.chordArray2[0],2)
-        return round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(self.L*9.80665/self.D,2), round(self.chordArray2[0],2)
+        print "calculating...", round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(self.L*9.80665/self.D,2), round(self.chord_array[0], 2)
+        return round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(self.L*9.80665/self.D,2), round(self.chord_array[0], 2)
         #
         #Use module shonw below if you do optimization
         #
@@ -429,14 +433,14 @@ class Wing(object):
         #return 1./round(self.L*9.80665/self.D,2)
 
     def calcTrimdrag(self):
-        airplaneCG=0.3
+        airplaneCG = 0.3
 
     def solve_CL(self, angle):
         """
         This method is to calculate lift coefficient,
         where wing area, airspeed, and weight are given.
         """
-        self.calc_reynolds(self.velocity, self.temperature)
+        self.calc_reynolds()
         self.calc_lift_slope_and_zero_lift_array()
         # self.calc_zero_lift_angle_array()
         self.calc_CL_Cdi_CD(angle)
@@ -449,7 +453,7 @@ class Wing(object):
         self.weight = weight
 
     def calc_withconstWeight(self, objweight, velocity, temperature):
-        self.calc_reynolds(velocity, temperature)
+        self.calc_reynolds()
         self.calc_weight(objweight)
         from scipy import optimize
 
@@ -465,7 +469,9 @@ class Wing(object):
         csvfile, number of cell, design cruise speed, ambient temperature
         """
         #testWing = wing(wingcsv,ncell)
-        self.calc_reynolds(velocity, temperature)
+        self.set_temperature(temperature)
+        self.set_velovity(velocity)
+        self.calc_reynolds()
         self.set_aerodynamcis_data()
         """機体の特性を出す"""
         CLarray = []
@@ -483,6 +489,7 @@ class Wing(object):
 
         """maxL/Dの線を引くためのリスト生成"""
         j = 0
+        maxslope = None
         for i in np.array(CLarray)/np.array(CDarray):
             if i == max(np.array(CLarray)/np.array(CDarray)):
                 maxslope = i
@@ -496,12 +503,14 @@ class Wing(object):
         self.xmaxLDline = xlist
         self.ymaxLDline = ylist
 
-    """calculation of planform data for drawing planform"""
-
     def calc_planform(self):
-        y1 = [self.chordArray2[len(self.xcp_array) - 1] * (1.0 - self.xcp_array[len(self.xcp_array) - 1]) - self.chordArray2[len(self.xcp_array) - i] * (1.0 - self.xcp_array[len(self.xcp_array) - i]) for i in range(1, len(self.xcp_array) + 1)]
+        """
+        calculation of planform data for drawing planform
+        :return:
+        """
+        y1 = [self.chord_array[len(self.xcp_array) - 1] * (1.0 - self.xcp_array[len(self.xcp_array) - 1]) - self.chord_array[len(self.xcp_array) - i] * (1.0 - self.xcp_array[len(self.xcp_array) - i]) for i in range(1, len(self.xcp_array) + 1)]
         x1 = [self.yy[len(self.xcp_array) - i] for i in range(1, len(self.xcp_array) + 1)]
-        y2 = [self.chordArray2[len(self.xcp_array) - 1] * self.xcp_array[len(self.xcp_array) - 1] + self.chordArray2[len(self.xcp_array) - i] * self.xcp_array[len(self.xcp_array) - i] for i in range(1, len(self.xcp_array) + 1)]
+        y2 = [self.chord_array[len(self.xcp_array) - 1] * self.xcp_array[len(self.xcp_array) - 1] + self.chord_array[len(self.xcp_array) - i] * self.xcp_array[len(self.xcp_array) - i] for i in range(1, len(self.xcp_array) + 1)]
 
         x2 = x1 + x1[::-1]
         y2 = y1 + y2[::-1]
@@ -509,7 +518,7 @@ class Wing(object):
         self.planx = x2
         self.plany = y2
         plt.plot(x2, y2)
-        xcp0 = self.chordArray2[len(self.xcp_array) - 1] * (1.0 - self.xcp_array[len(self.xcp_array) - 1])
+        xcp0 = self.chord_array[len(self.xcp_array) - 1] * (1.0 - self.xcp_array[len(self.xcp_array) - 1])
         plt.plot([0, self.span / 2.], [xcp0, xcp0])
         plt.axis("equal")
         plt.xlabel("y [m]")
