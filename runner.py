@@ -10,12 +10,10 @@ if __name__ == '__main__':
     velocity = 8.5
     temperature = 30
     aspect_ratio = 21.0
-    surface_area = 22.0
+    surface_area = 24.0
 
     testWing = Wing('testplane.csv', number_cell, aspect_ratio, surface_area, optflag=0)
-    testWing.temperature = temperature
-    testWing.velocity = velocity
-    testWing.calc_variedaoa(velocity, temperature, [0, 1, 2])
+    testWing.calc_variedaoa(velocity, temperature, range(0, 10))
     testWing.calc_planform()
     ww = weight.calc_weight(testWing.span, "FX76-MP140")
     post_process_operation.draw_spandirdata(testWing.yy,

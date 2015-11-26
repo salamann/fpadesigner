@@ -51,7 +51,7 @@ if __name__ == '__main__':
                 x = [x1, x2, x3, x4, x5, x6]
                 if x1 > x2 > x3 > x4 > x5 > x6:
                     #print "hit", i
-                    res.append(testWing.opt_circ(x))
+                    res.append(testWing.optimize_circulation(x))
             #np.savetxt('test.csv', np.array(res), delimiter=',')
             res = np.array(res)
             resed = res[res[:, 8].argsort()]
@@ -59,7 +59,7 @@ if __name__ == '__main__':
             print resed[len(resed)-1][8]
             print resed[len(resed)-2][8]
             print resed[len(resed)-3][8]
-            testWing.opt_circ(resed[len(resed)-1][2:8])
+            testWing.optimize_circulation(resed[len(resed) - 1][2:8])
             ww = weight.calc_weight(testWing.span, "FX76-MP140")
 
             testWing.calc_withconstWeight(ww, velocity, temperature) #96.007

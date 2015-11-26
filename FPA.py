@@ -8,6 +8,7 @@ import numpy as np
 from scipy import stats
 from scipy.interpolate import interp2d, interp1d
 from scipy.linalg import solve
+from scipy import optimize
 
 import io_fpa
 from aerodynamics_2d import read_xflr5_data
@@ -58,7 +59,6 @@ def calc_thickness_of_wing(XFOILdirectory, chordArray2):
     # make thickness list of span direction
     thickness = [i * maxthickness for i in chordArray2]
     return thickness
-    #self.thick36 = [i * thickness36 for i in self.chordArray2]
 
     # plt.plot(self.yy, self.thickness)
     # plt.savefig(self.dirname + "/" + "thickness")
@@ -106,10 +106,10 @@ class Wing(object):
         self.aspect = aspect
         self.dihedral = data[5][2]
         self.XFOILdirectory = str(data[5][3])
-##        if optflag == 1:
-##            pass#self.shapeData = directshape
-##        elif optflag == 0:
-##            self.shapeData = data[9:]
+        # if optflag == 1:
+        #    pass#self.shapeData = directshape
+        # elif optflag == 0:
+        #    self.shapeData = data[9:]
         self.dirname = str(self.XFOILdirectory) + "S" + str(self.surface) + "AR" + str(self.aspect)
         if not os.path.isdir(self.dirname):
             os.mkdir(self.dirname)
@@ -120,6 +120,7 @@ class Wing(object):
             self.shapeData = data[9:]
             self.wing_shape()
 
+    # TODO: グラフを描くための機能が混じっている。リファクタリングが必要。
     def wing_shape(self):
         """
         calc the chord array according to slices
@@ -182,7 +183,7 @@ class Wing(object):
     def set_temperature(self, temperature):
         self.temperature = temperature
 
-    def set_velovity(self, velocity):
+    def set_velocity(self, velocity):
         self.velocity = velocity
 
     def calc_reynolds(self):
@@ -272,10 +273,13 @@ class Wing(object):
         inducedAoa = np.array(self.dwArray) / self.velocity
         self.inducedAoa = inducedAoa
 
-    """
-    calculation induced drag
-    """
     def calc_CL_Cdi_CD(self, angle, oddOReven=1):
+        """
+        calculate induced drag.
+        :param angle:
+        :param oddOReven:
+        :return:
+        """
         self.angle = angle
         self.oddOReven = oddOReven
         # 航空力学の基礎第2版 p.142 式3.99の下の式より
@@ -317,7 +321,7 @@ class Wing(object):
         # これをいれると航空力学の基礎p.147のAnの値がでる
 
         # calc CL
-        self.CL = np.pi*self.aspect*An[0]
+        self.CL = np.pi * self.aspect * An[0]
 
         # calc Cdi
         sigma = 0
@@ -328,9 +332,9 @@ class Wing(object):
             sigma += j * An[i] ** 2.0 / An[0] ** 2.0
             j += 2
 
-        self.Cdi = (1.0 + sigma)*self.CL**2.0/np.pi/self.aspect
+        self.Cdi = (1.0 + sigma) * self.CL ** 2.0 / np.pi / self.aspect
 
-        # donw washと誘導迎角の計算
+        # down washと誘導迎角の計算
         self.calc_down_wash(thetas, An)
         self.calc_induced_angle_of_attack()
         # new angleは吹き下ろしを考慮した迎角
@@ -410,9 +414,13 @@ class Wing(object):
         # def calc_W(self):
         self.W = self.D * self.velocity
 
-    # Calculating integration of circulation
-    def opt_circ(self, x):
-        #self.shapeData = [[0.0, 100.0], [40.0, 100], [50., x[0]],[60, x[1]],[70, x[2]],[80, x[3]],[90, x[4]],[95, x[5]], [100.0, x[6]]]
+    #TODO: これはよく分からない。たぶん循環分布を楕円型にして最適化を行うものと思うが,空力データそのものとは関係ない
+    def optimize_circulation(self, x):
+        """
+        Calculating integration of circulation
+        :param x:
+        :return:
+        """
         self.shapeData = [[0.0, 100.0],
                           [40.0, 100],
                           [50., x[0]],
@@ -424,20 +432,34 @@ class Wing(object):
         self.wing_shape()
         self.calc_reynolds()
         self.calc_lift_slope_and_zero_lift_array()
-        # self.calc_zero_lift_angle_array()
         self.calc_CL_Cdi_CD(3.)
-        #print "calculating...",round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(x[6],1),round(self.L*9.80665/self.D,2)
-        print "calculating...", round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(self.L*9.80665/self.D,2), round(self.chord_array[0], 2)
-        return round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(self.L*9.80665/self.D,2), round(self.chord_array[0], 2)
+        print "calculating...", round(self.eval_func*1000, 1),\
+            round(self.W, 1),\
+            round(x[0], 1),\
+            round(x[1], 1),\
+            round(x[2], 1),\
+            round(x[3], 1),\
+            round(x[4], 1),\
+            round(x[5], 1),\
+            round(self.L*9.80665/self.D, 2), \
+            round(self.chord_array[0], 2)
+        return round(self.eval_func*1000, 1),\
+               round(self.W, 1),\
+               round(x[0], 1),\
+               round(x[1], 1),\
+               round(x[2], 1),\
+               round(x[3], 1),\
+               round(x[4], 1),\
+               round(x[5], 1),\
+               round(self.L*9.80665/self.D, 2), \
+               round(self.chord_array[0], 2)
         #
-        #Use module shonw below if you do optimization
+        # Use module shown below if you do optimization
         #
-        #return self.eval_func*10
-        #return 1./round(self.L*9.80665/self.D,2)
+        # return self.eval_func*10
+        # return 1./round(self.L*9.80665/self.D,2)
 
-    def calcTrimdrag(self):
-        airplaneCG = 0.3
-
+    # TODO: solve_CLは，与えられた重量に対して釣り合うCLを探すプログラム。空力データとは関係ないので移動させる
     def solve_CL(self, angle):
         """
         This method is to calculate lift coefficient,
@@ -448,17 +470,18 @@ class Wing(object):
         # self.calc_zero_lift_angle_array()
         self.calc_CL_Cdi_CD(angle)
 
-        Cw = self.weight*9.81 / (0.5 * self.airDensity * self.velocity ** 2.0 *self.surface)
+        Cw = self.weight * 9.81 / (0.5 * self.airDensity * self.velocity ** 2.0 * self.surface)
         print "solving CL of constant weight..."
         return Cw - self.CL * np.cos(np.radians(self.dihedral))
 
+    # TODO: weightは，与えられた重量に対して釣り合うCLを探すプログラム。空力データとは関係ないので移動させる
     def calc_weight(self, weight):
         self.weight = weight
 
+    # TODO: calc_withconstWeightは，与えられた重量に対して釣り合うCLを探すプログラム。空力データとは関係ないので移動させる
     def calc_withconstWeight(self, objweight, velocity, temperature):
         self.calc_reynolds()
         self.calc_weight(objweight)
-        from scipy import optimize
 
         optimize.brenth(self.solve_CL, -5, 10)
 
@@ -467,22 +490,27 @@ class Wing(object):
     def set_aerodynamcis_data(self):
         self.aerodynamics_2d_data = read_xflr5_data(self.XFOILdirectory)
 
+    # TODO: グラフを描くための機能と迎角を振るための機能が混じっている
     def calc_variedaoa(self, velocity, temperature, aoaarray):
         """
         csvfile, number of cell, design cruise speed, ambient temperature
+        :param velocity:
+        :param temperature:
+        :param aoaarray:
+        :return:
         """
+
         #testWing = wing(wingcsv,ncell)
         self.set_temperature(temperature)
-        self.set_velovity(velocity)
+        self.set_velocity(velocity)
         self.calc_reynolds()
         self.set_aerodynamcis_data()
         """機体の特性を出す"""
         CLarray = []
         CDarray = []
         for i in aoaarray:
-            print "alpha = " + str(i) +" deg"
+            print "alpha = {} [deg]".format(str(i))
             self.calc_lift_slope_and_zero_lift_array()
-            # self.calc_zero_lift_angle_array()
             self.calc_CL_Cdi_CD(i)
             CLarray.append(self.CL)
             CDarray.append(self.CD)
