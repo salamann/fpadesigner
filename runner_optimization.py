@@ -3,7 +3,9 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from FPA import Wing, Body, Tail
+from FPA import Wing
+from tail import Tail
+from body import Body
 import weight
 import io_fpa
 import post_process_operation
