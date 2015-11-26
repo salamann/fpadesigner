@@ -4,8 +4,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.linalg import solve
+from scipy import stats
+from scipy.interpolate import interp2d
 
 import io_fpa
+from aerodynamics_2d import read_xflr5_data
 import post_process_operation
 import weight
 # Load wing configuration file and create "wing" instance
@@ -33,7 +36,6 @@ class Wing(object):
 ##            pass#self.shapeData = directshape
 ##        elif optflag == 0:
 ##            self.shapeData = data[9:]
-##        #print self.shapeData
         import os
         self.dirname = str(self.XFOILdirectory) + "S" + str(self.surface) + "AR" + str(self.aspect)
         try:
@@ -46,6 +48,7 @@ class Wing(object):
         elif optflag == 0:
             self.shapeData = data[9:]
             self.wingshape()
+        self.aerodynamics_2d_data = None
 
     def wingshape(self):
         """
@@ -110,7 +113,7 @@ class Wing(object):
     Cr:ルートコード長、yy:求めるスパン長
     """
     def calc_chord(self, lambda1, lambda2, y1, y2, Cr, yy):
-        return lambda1 * Cr -(yy - y1) * (lambda1 - lambda2) / (y2 - y1) * Cr
+        return lambda1 * Cr - (yy - y1) * (lambda1 - lambda2) / (y2 - y1) * Cr
 
     def calc_wingthickness(self):
         """calculation wing thickness list"""
@@ -134,10 +137,10 @@ class Wing(object):
         lowery = np.array(ylist[zeropoint:])
 
         #interpolate uppwer and lower file in order to be able to different yposition of both upper and lower
-        linear_interp_upper = interp1d(upperx,uppery)
-        linear_interp_lower = interp1d(lowerx,lowery)
+        linear_interp_upper = interp1d(upperx, uppery)
+        linear_interp_lower = interp1d(lowerx, lowery)
 ##
-        xx = np.linspace(0.,1.,100)
+        xx = np.linspace(0., 1., 100)
         newylower = linear_interp_lower(xx)
         newyupper = linear_interp_upper(xx)
 
@@ -163,36 +166,41 @@ class Wing(object):
     #
     #
     def calc_reynolds(self, velocity=0, temperature=0):
-    # ----------- >> calc Reynolds array ------------------
-        #self.temperature = temperature
-        #self.velocity = velocity
         kine_vis = 1.34 * 10 ** - 5. + 9.31477 * 10 ** - 8. * self.temperature
-        #print "velo",self.velocity
-        #print "kine_vis", kine_vis
-        #print self.chordArray2
         self.Re = np.array(self.chordArray2) * self.velocity / kine_vis
         self.airDensity = 1.28912 - 0.004122391 * self.temperature
         return self.Re
-    # ----------- calc Reynolds array << ------------------
 
-    #揚力傾斜をRe数ごと(スパン方向ごと)に計算
     def calc_liftSlopeArray(self):
         """
+        揚力傾斜をRe数ごと(スパン方向ごと)に計算
         This method is to calculate lift slope
         for each span position using reynolds number.
-        :return:
         """
-        from scipy import stats
-        datas = [self.calc_Interpolate(i) for i in self.Re/10**6.]
-
+        cl = self.aerodynamics_2d_data["CL"]
+        alpha = np.radians(self.aerodynamics_2d_data["alpha"])
+        func = interp2d(alpha[0], np.arange(0, 1.01, 0.1), cl, kind='linear')
+        start_index = np.where(alpha[0] == np.radians(-3.0))[0]
+        end_index = np.where(alpha[0] == np.radians(4.0))[0]
+        datas = func(alpha[0], self.Re / 10 ** 6.)
         liftSlopeArray = []
         for data in datas:
-            start_angle = -3 #deg
-            end_angle = 4 #deg
-
-            slope, intercept, r_value, p_value, std_err = stats.linregress(np.radians(data.transpose()[0][start_angle+10:end_angle+10]),data.transpose()[1][start_angle+10:end_angle+10])
+            slope, intercept, r_value, p_value, std_err = stats.linregress(alpha[0][start_index:end_index],
+                                                                           data[start_index:end_index])
             liftSlopeArray.append(slope)
         self.liftSlopeArray = liftSlopeArray
+
+
+        # datas = [self.calc_interpolate(i) for i in self.Re / 10 ** 6.]
+
+        # liftSlopeArray = []
+        # for data in datas:
+        #     start_angle = -3 #deg
+        #     end_angle = 4 #deg
+        #
+        #     slope, intercept, r_value, p_value, std_err = stats.linregress(np.radians(data.transpose()[0][start_angle+10:end_angle+10]), data.transpose()[1][start_angle+10:end_angle+10])
+        #     liftSlopeArray.append(slope)
+        # self.liftSlopeArray = liftSlopeArray
 
     def calc_zeroLiftAngle(self, data):
         """
@@ -209,20 +217,20 @@ class Wing(object):
         slope, intercept, r_value, p_value, std_err = stats.linregress(np.radians(data.transpose()[0][start_angle+10:end_angle+10]),data.transpose()[1][start_angle+10:end_angle+10])
         self.zeroLiftAngle = - data[10][1] / slope
 
-        return  self.zeroLiftAngle
+        return self.zeroLiftAngle
 
     #ゼロ揚力角の配列の計算
     def calc_zeroliftangleArray(self):
-        datas = [self.calc_Interpolate(i) for i in self.Re/10**6.]
+        datas = [self.calc_interpolate(i) for i in self.Re / 10 ** 6.]
 
         zeroliftangleArray = []
         for data in datas:
             zeroliftangleArray.append(self.calc_zeroLiftAngle(data))
         self.zeroliftangleArray = zeroliftangleArray
 
-    def calc_Interpolate(self, Reynolds):
-        rey1 = round(Reynolds,1)
-        rey2 = round(Reynolds,2)
+    def calc_interpolate(self, reynolds):
+        rey1 = round(reynolds, 1)
+        rey2 = round(reynolds, 2)
 
         #レイノルズ数の小数点第2桁が0のとき,つまり内挿しなくていいとき 0.80とか
         if rey1 == rey2:
@@ -259,7 +267,7 @@ class Wing(object):
     #スパン方向のCD0の計算
     def calc_CD0Array(self):
         from scipy.interpolate import interp1d
-        datas = [self.calc_Interpolate(i) for i in self.Re/10**6.]
+        datas = [self.calc_interpolate(i) for i in self.Re / 10 ** 6.]
         localangle = [self.angle - i for i in np.degrees(self.inducedAoa)]
         self.localangle = localangle #吹き下ろしを弾いた後の迎角配列
         cd0Array = []
@@ -272,7 +280,7 @@ class Wing(object):
     #Calculate center of pressure
     def calc_xcp(self):
         from scipy.interpolate import interp1d
-        datas = [self.calc_Interpolate(i) for i in self.Re/10**6.]
+        datas = [self.calc_interpolate(i) for i in self.Re / 10 ** 6.]
 
         xcpArray = []
         for i in range(len(self.Re)):
@@ -503,13 +511,16 @@ class Wing(object):
 
     ##        L = self.L/9.81
 
+    def set_aerodynamcis_data(self):
+        self.aerodynamics_2d_data = read_xflr5_data(self.XFOILdirectory)
+
     def calc_variedaoa(self, velocity, temperature, aoaarray):
         """
         csvfile, number of cell, design cruise speed, ambient temperature
         """
         #testWing = wing(wingcsv,ncell)
         self.calc_reynolds(velocity, temperature)
-
+        self.set_aerodynamcis_data()
         """機体の特性を出す"""
         CLarray = []
         CDarray = []
@@ -534,10 +545,10 @@ class Wing(object):
 
         xlist = list(CDarray)
         ylist = list(np.array(self.CDarray)*self.maxslope)
-        xlist.insert(0,0)
-        ylist.insert(0,0)
-        self.xmaxLDline =xlist
-        self.ymaxLDline =ylist
+        xlist.insert(0, 0)
+        ylist.insert(0, 0)
+        self.xmaxLDline = xlist
+        self.ymaxLDline = ylist
 
     """calculation of planform data for drawing planform"""
 
