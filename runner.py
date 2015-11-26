@@ -35,6 +35,7 @@ if __name__ == '__main__':
                                             testWing.plany,
                                             testWing.dirname)
 
+
     # zz = []
     # for j in [21, 23, 25, 27, 29, 31]: #aspect ratio
     #     for k in [20, 22, 24, 26]: #surface area

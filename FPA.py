@@ -9,7 +9,6 @@ from scipy.interpolate import interp1d, interp2d
 
 import io_fpa
 from aerodynamics_2d import read_xflr5_data
-import post_process_operation
 import weight
 # Load wing configuration file and create "wing" instance
 #
@@ -52,6 +51,8 @@ class Wing(object):
         self.lift_slope_array = None
         self.zero_lift_angle_array = None
         self.local_angle = None
+        self.xcp_array = None
+        self.chord_cp_array = None
 
     def wingshape(self):
         """
@@ -174,11 +175,13 @@ class Wing(object):
         self.airDensity = 1.28912 - 0.004122391 * self.temperature
         return self.Re
 
-    def calc_lift_slope_array(self):
+    def calc_lift_slope_array(self, start_angle=-3.0, end_angle=4.0):
         """
         揚力傾斜をRe数ごと(スパン方向ごと)に計算
         This method is to calculate lift slope
         for each span position using reynolds number.
+        :param start_angle: float
+        :param end_angle: float
         """
         cl = self.aerodynamics_2d_data["CL"]
         alpha = np.radians(self.aerodynamics_2d_data["alpha"])
@@ -187,8 +190,8 @@ class Wing(object):
         """
         Calculate the range that is used for getting regression curve for lift slope
         """
-        start_index = np.where(alpha[0] == np.radians([-3.0]))[0]
-        end_index = np.where(alpha[0] == np.radians([4.0]))[0]
+        start_index = np.where(alpha[0] == np.radians([start_angle]))[0]
+        end_index = np.where(alpha[0] == np.radians([end_angle]))[0]
         lift_slope_array = []
         zero_lift_angle_array = []
         for datum in data:
@@ -287,17 +290,17 @@ class Wing(object):
         self.local_angle = [self.angle - i for i in np.degrees(self.inducedAoa)]
 
     #スパン方向のCD0の計算
-    def calc_CD0Array(self):
+    def calc_cd0_array(self):
         local_angles = self.local_angle #吹き下ろしを弾いた後の迎角配列
 
         cd = self.aerodynamics_2d_data["CD"]
         alpha = np.radians(self.aerodynamics_2d_data["alpha"])
         func = interp2d(alpha[0], np.arange(0, 1.01, 0.1), cd, kind='linear')
         # data = func(alpha[0], self.Re / 10 ** 6.)
-        cd0Array = []
-        for localangle, reynolds_number in zip(local_angles, self.Re):
-            cd0Array.append(func(localangle, reynolds_number)[0])
-        self.cd0Array = cd0Array
+        cd0_array = []
+        for local_angle, reynolds_number in zip(local_angles, self.Re):
+            cd0_array.append(func(np.radians(local_angle), reynolds_number)[0])
+        self.cd0Array = cd0_array
 
         # start_index = np.where(alpha[0] == np.radians([-3.0]))[0]
         # end_index = np.where(alpha[0] == np.radians([4.0]))[0]
@@ -318,17 +321,17 @@ class Wing(object):
         # self.cd0Array = cd0Array
 
     #Calculate center of pressure
-    def calc_xcp(self):
+    def calc_xcp_array(self):
         local_angles = self.local_angle #吹き下ろしを弾いた後の迎角配列
         xcp = self.aerodynamics_2d_data["XCp"]
         alpha = np.radians(self.aerodynamics_2d_data["alpha"])
         func = interp2d(alpha[0], np.arange(0, 1.01, 0.1), xcp, kind='linear')
         # data = func(alpha[0], self.Re / 10 ** 6.)
-        xcpArray = []
+        xcp_array = []
         for localangle, reynolds_number in zip(local_angles, self.Re):
-            xcpArray.append(func(localangle, reynolds_number)[0])
-        self.xcpArray = xcpArray
-        self.chordcpArray = xcpArray * self.chordArray2
+            xcp_array.append(func(np.radians(localangle), reynolds_number)[0])
+        self.xcp_array = xcp_array
+        self.chord_cp_array = xcp_array * self.chordArray2
 
 
         # from scipy.interpolate import interp1d
@@ -424,7 +427,7 @@ class Wing(object):
 ##        newangle = self.angle - np.degrees(self.inducedAoa)
 
         self.set_local_angle()
-        self.calc_CD0Array()
+        self.calc_cd0_array()
         #CD0の計算
         #calc CD2
         deltaD = []
@@ -437,7 +440,7 @@ class Wing(object):
         dCD = D2 / (0.5 * self.airDensity * self.velocity ** 2.0 * self.surface / 2.0)
 
         #風圧中心の計算
-        self.calc_xcp()
+        self.calc_xcp_array()
 
         #スパン方向の揚力係数・循環・揚力計算
         circDist = []
@@ -601,9 +604,9 @@ class Wing(object):
     """calculation of planform data for drawing planform"""
 
     def calc_planform(self):
-        y1 = [self.chordArray2[len(self.xcpArray)-1] * (1.0 - self.xcpArray[len(self.xcpArray)-1]) - self.chordArray2[len(self.xcpArray)-i] * (1.0 - self.xcpArray[len(self.xcpArray)-i]) for i in range(1,len(self.xcpArray)+1)]
-        x1 = [self.yy[len(self.xcpArray)-i] for i in range(1, len(self.xcpArray)+1)]
-        y2 = [self.chordArray2[len(self.xcpArray)-1] * self.xcpArray[len(self.xcpArray)-1] + self.chordArray2[len(self.xcpArray)-i] * self.xcpArray[len(self.xcpArray)-i] for i in range(1,len(self.xcpArray)+1)]
+        y1 = [self.chordArray2[len(self.xcp_array) - 1] * (1.0 - self.xcp_array[len(self.xcp_array) - 1]) - self.chordArray2[len(self.xcp_array) - i] * (1.0 - self.xcp_array[len(self.xcp_array) - i]) for i in range(1, len(self.xcp_array) + 1)]
+        x1 = [self.yy[len(self.xcp_array) - i] for i in range(1, len(self.xcp_array) + 1)]
+        y2 = [self.chordArray2[len(self.xcp_array) - 1] * self.xcp_array[len(self.xcp_array) - 1] + self.chordArray2[len(self.xcp_array) - i] * self.xcp_array[len(self.xcp_array) - i] for i in range(1, len(self.xcp_array) + 1)]
 
         x2 = x1 + x1[::-1]
         y2 = y1 + y2[::-1]
@@ -611,7 +614,7 @@ class Wing(object):
         self.planx = x2
         self.plany = y2
         plt.plot(x2, y2)
-        xcp0 = self.chordArray2[len(self.xcpArray)-1] * (1.0 - self.xcpArray[len(self.xcpArray)-1])
+        xcp0 = self.chordArray2[len(self.xcp_array) - 1] * (1.0 - self.xcp_array[len(self.xcp_array) - 1])
         plt.plot([0, self.span / 2.], [xcp0, xcp0])
         plt.axis("equal")
         plt.xlabel("y [m]")

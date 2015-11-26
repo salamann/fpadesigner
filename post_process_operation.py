@@ -19,7 +19,6 @@ def draw_spandirdata(yy, dL, clDist, circDist, ellipse, inducedAoa, planx, plany
     plt.legend()
     plt.subplot(514)
     plt.plot(yy, inducedAoa, label="Alpha_i")
-
     plt.legend()
     plt.subplot(515)
     plt.plot(planx, plany, label="Planform")
