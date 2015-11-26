@@ -227,7 +227,7 @@ class wing(object):
                 txtFile = txtFile+'0'
 
             self.XFOILfile = '/'+txtFile+'.txt'
-            data = iomod.readdata(self.XFOILdirectory+self.XFOILfile)
+            data = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
         #内挿すべきとき たとえば0.84
         else:
             txtFile = str(rey1-0.1)
@@ -236,7 +236,7 @@ class wing(object):
             for i in range(4-len(txtFile)):
                 txtFile = txtFile+'0'
             self.XFOILfile = '/'+txtFile+'.txt'
-            data1 = iomod.readdata(self.XFOILdirectory+self.XFOILfile)
+            data1 = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
 
             txtFile = str(rey1)
             if len(txtFile)==1:
@@ -244,7 +244,7 @@ class wing(object):
             for i in range(4-len(txtFile)):
                 txtFile = txtFile+'0'
             self.XFOILfile = '/'+txtFile+'.txt'
-            data2 = iomod.readdata(self.XFOILdirectory+self.XFOILfile)
+            data2 = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
 
             data = (data2-data1)*(rey2-rey1)/(float(str(rey1 + 0.1))-rey1)+data1
 

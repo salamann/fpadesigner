@@ -1,18 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#-----------------
-#importing numerical calculation modules
-#-----------------
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve
 from scipy.optimize import minimize
 from scipy.optimize import basinhopping
 
-#-----------------
-#importing handmade modules
-#-----------------
 import iomod
 import postmod
 import weight
@@ -25,7 +19,7 @@ import weight
 # analyzeStep - analyze slice steps スパン方向の分割数
 # -----------------------------------------------
 #
-class wing(object):
+class Wing(object):
     def __init__(self, sourceFile, halfStep, surface, aspect, optflag=0):
         self._sourceFile = sourceFile
         self.halfStep = halfStep
@@ -63,7 +57,7 @@ class wing(object):
 
         #ルートコード長crの計算
         bunbo = 0.
-        for i in range(0,len(self.shapeData)-1,1):
+        for i in range(0, len(self.shapeData)-1, 1):
             bunbo += (self.shapeData[i][1]/100. + self.shapeData[i+1][1]/100.) * (self.shapeData[i+1][0]/100. - self.shapeData[i][0]/100.)
         bunbo = bunbo * span / 2.
         cr = self.surface / bunbo
@@ -83,7 +77,11 @@ class wing(object):
         for yy in y:
             for i in range(len(spanlambda)-1):
                 if spanratio[i]*self.span/2.0 <= yy and yy < spanratio[i + 1]*self.span/2.0:
-                    chordArray2.append(self.calc_chord(spanlambda[i],spanlambda[i + 1],spanratio[i]*self.span/2.0,spanratio[i + 1]*self.span/2.0,cr,yy))
+                    chordArray2.append(self.calc_chord(spanlambda[i],
+                                                       spanlambda[i + 1],
+                                                       spanratio[i]*self.span/2.0,
+                                                       spanratio[i + 1]*self.span/2.0,
+                                                       cr, yy))
         #スパン位置の配列
         self.yy = y
         #コード長の配列
@@ -106,11 +104,12 @@ class wing(object):
         self.figyy = figyy
 
         self.calc_wingthickness()
-
-    #コード長を求めるメソッド
-    #lambda1:一つ前のテーパ比,lambda2:1つ後のテーパ比,y1:一つ前のスパン,y2:1つ後のスパン
-    #Cr:ルートコード長、yy:求めるスパン長
-    def calc_chord(self,lambda1,lambda2,y1,y2,Cr,yy):
+    """
+    コード長を求めるメソッド
+    lambda1:一つ前のテーパ比,lambda2:1つ後のテーパ比,y1:一つ前のスパン,y2:1つ後のスパン
+    Cr:ルートコード長、yy:求めるスパン長
+    """
+    def calc_chord(self, lambda1, lambda2, y1, y2, Cr, yy):
         return lambda1 * Cr -(yy - y1) * (lambda1 - lambda2) / (y2 - y1) * Cr
 
     def calc_wingthickness(self):
@@ -235,7 +234,7 @@ class wing(object):
                 txtFile = txtFile+'0'
 
             self.XFOILfile = '/'+txtFile+'.txt'
-            data = iomod.readdata(self.XFOILdirectory+self.XFOILfile)
+            data = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
         #内挿すべきとき たとえば0.84
         else:
             txtFile = str(rey1-0.1)
@@ -244,7 +243,7 @@ class wing(object):
             for i in range(4-len(txtFile)):
                 txtFile = txtFile+'0'
             self.XFOILfile = '/'+txtFile+'.txt'
-            data1 = iomod.readdata(self.XFOILdirectory+self.XFOILfile)
+            data1 = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
 
             txtFile = str(rey1)
             if len(txtFile)==1:
@@ -252,7 +251,7 @@ class wing(object):
             for i in range(4-len(txtFile)):
                 txtFile = txtFile+'0'
             self.XFOILfile = '/'+txtFile+'.txt'
-            data2 = iomod.readdata(self.XFOILdirectory+self.XFOILfile)
+            data2 = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
 
             data = (data2-data1)*(rey2-rey1)/(float(str(rey1 + 0.1))-rey1)+data1
 
@@ -291,20 +290,24 @@ class wing(object):
 
     #吹き下ろしの計算
     #航空力学の基礎第2版 p.141 式3.97より
-    def calc_downwash(self,thetas,An):
+    def calc_downwash(self, thetas, An):
         dwArray = []
         for theta in thetas:
             dw = sum([(2*i+1)*An[i] * np.sin((2*i+1)*theta) / np.sin(theta) for i in range(len(An))]) * self.velocity
             dwArray.append(dw)
         self.dwArray = dwArray
 
-    """calculation induced alpha [radians]"""
+    """
+    calculation induced alpha [radians]
+    """
     def calc_inducedAoa(self):
         inducedAoa = np.array(self.dwArray) / self.velocity
         self.inducedAoa = inducedAoa
 
-    """calculation induced drag"""
-    def calc_CL_Cdi_CD(self, angle, oddOReven = 1):
+    """
+    calculation induced drag
+    """
+    def calc_CL_Cdi_CD(self, angle, oddOReven=1):
         self.angle = angle
         self.oddOReven = oddOReven
         #航空力学の基礎第2版 p.142 式3.99の下の式より
@@ -447,7 +450,7 @@ class wing(object):
 
 
     #Calculating integration of circulation
-    def opt_circ(self,x):
+    def opt_circ(self, x):
         #self.shapeData = [[0.0, 100.0], [40.0, 100], [50., x[0]],[60, x[1]],[70, x[2]],[80, x[3]],[90, x[4]],[95, x[5]], [100.0, x[6]]]
         self.shapeData = [[0.0, 100.0], [40.0, 100], [50., x[0]],[70, x[1]],[82, x[2]],[90, x[3]],[95, x[4]], [100.0, x[5]]]
         self.wingshape()
@@ -468,7 +471,6 @@ class wing(object):
     def calcTrimdrag(self):
         airplaneCG=0.3
 
-
     def solve_CL(self, angle):
         """
         This method is to calculate lift coefficient,
@@ -483,10 +485,10 @@ class wing(object):
         print "solving CL of constant weight..."
         return Cw - self.CL * np.cos(np.radians(self.dihedral))
 
-    def calc_weight(self,weight):
+    def calc_weight(self, weight):
         self.weight = weight
 
-    def calc_withconstWeight(self,objweight,velocity,temperature):
+    def calc_withconstWeight(self, objweight, velocity, temperature):
         self.calc_reynolds(velocity, temperature)
         self.calc_weight(objweight)
         from scipy import optimize
@@ -495,7 +497,7 @@ class wing(object):
 
     ##        L = self.L/9.81
 
-    def calc_variedaoa(self,velocity,temperature,aoaarray):
+    def calc_variedaoa(self, velocity, temperature, aoaarray):
         """csvfile, number of cell, design cruise speed, ambient temperature
 
 
@@ -536,7 +538,7 @@ class wing(object):
 
     def calc_planform(self):
         y1 = [self.chordArray2[len(self.xcpArray)-1] * (1.0 - self.xcpArray[len(self.xcpArray)-1]) - self.chordArray2[len(self.xcpArray)-i] * (1.0 - self.xcpArray[len(self.xcpArray)-i]) for i in range(1,len(self.xcpArray)+1)]
-        x1 = [self.yy[len(self.xcpArray)-i] for i in range(1,len(self.xcpArray)+1)]
+        x1 = [self.yy[len(self.xcpArray)-i] for i in range(1, len(self.xcpArray)+1)]
         y2 = [self.chordArray2[len(self.xcpArray)-1] * self.xcpArray[len(self.xcpArray)-1] + self.chordArray2[len(self.xcpArray)-i] * self.xcpArray[len(self.xcpArray)-i] for i in range(1,len(self.xcpArray)+1)]
 
         x2 = x1 + x1[::-1]
@@ -555,41 +557,41 @@ class wing(object):
 #        pl.clf()
 
 
-class body(object):
-    def __init__(self,velocity,temperature):
+class Body(object):
+    def __init__(self, velocity, temperature):
         self.temperature = temperature
         self.velocity = velocity
         kine_vis = 1.34 * 10 ** - 5. + 9.31477 * 10 ** - 8. * self.temperature
         self.airDensity = 1.28912 - 0.004122391 * self.temperature
         self.dynpres = 0.5 * self.airDensity * self.velocity ** 2.0
 
-    def fairdragcalc(self,fairArea):
+    def fairdragcalc(self, fairArea):
         """CD=0.10 : F-TEC technical report"""
         """CD=0.20 : T-MIT windtunnel data"""
         CDfair = 0.15
         self.fairringDrag = CDfair * fairArea * self.dynpres
         self.fairringPower = self.fairringDrag * self.velocity
 
-    def framedragcalc(self,framearea):
+    def framedragcalc(self, framearea):
         CDframe = 0.1
         self.frameDrag = CDframe * framearea * self.dynpres
         self.framePower = self.frameDrag * self.velocity
 
 
-class tail(object):
-    def __init__(self,velocity,temperature):
+class Tail(object):
+    def __init__(self, velocity, temperature):
         self.temperature = temperature
         self.velocity = velocity
         kine_vis = 1.34 * 10 ** - 5. + 9.31477 * 10 ** - 8. * self.temperature
         self.airDensity = 1.28912 - 0.004122391 * self.temperature
         self.dynpres = 0.5 * self.airDensity * self.velocity ** 2.0
 
-    def calc_htaildrag(self,htailArea):
+    def calc_htaildrag(self, htailArea):
         CDhtail = 0.008
         self.htailDrag = CDhtail * htailArea * self.dynpres
         self.htailPower = self.htailDrag * self.velocity
 
-    def calc_vtaildrag(self,vtailArea):
+    def calc_vtaildrag(self, vtailArea):
         CDvtail = 0.008
         self.vtailDrag = CDvtail * vtailArea * self.dynpres
         self.vtailPower = self.vtailDrag * self.velocity
@@ -602,7 +604,7 @@ if __name__ == '__main__':
     ncell = 40
     velocity = 8.5
     temperature = 30
-    aoaarray = range(-3,7)
+    aoaarray = range(-3, 7)
     aircraftcg = 0.30
     optwing = 1
     #directshape = [[0.0, 100.0], [40.0, 100.0], [70.0, 75.0], [100.0, 50.0]]
@@ -611,7 +613,7 @@ if __name__ == '__main__':
     for j in [21, 23, 25, 27, 29, 31]: #aspect ratio
         for k in [20, 22, 24, 26]: #surface area
         
-            testWing = wing('testplane.csv', ncell, k, j, optwing)
+            testWing = Wing('testplane.csv', ncell, k, j, optwing)
             testWing.temperature = temperature
             testWing.velocity = velocity
         #x = [70.,50.]
@@ -657,15 +659,15 @@ if __name__ == '__main__':
             #print "total weight  ",ww
 
 
-            testBody = body(velocity,temperature)
+            testBody = Body(velocity, temperature)
             testBody.fairdragcalc(1.136) #1.26がF-TECの値
             testBody.framedragcalc(0.0078)
-            testTail = tail(velocity,temperature)
+            testTail = Tail(velocity, temperature)
             testTail.calc_htaildrag(2.0)
             testTail.calc_vtaildrag(1.5)
             power = iomod.gen_result(testWing,testBody,testTail)
             zz.append([j, k, power])
-        #"""
+
             plt.clf()
             plt.figure(figsize=(8, 8))
             plt.plot(testWing.CD, testWing.CL, 'o')
@@ -697,4 +699,4 @@ if __name__ == '__main__':
     plt.title('Required power by AR and S')
     plt.savefig("contour.png")
 
-    #"""
+
