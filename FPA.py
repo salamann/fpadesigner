@@ -5,7 +5,7 @@
 #importing numerical calculation modules
 #-----------------
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as plt
 from scipy.linalg import solve
 from scipy.optimize import minimize
 from scipy.optimize import basinhopping
@@ -152,8 +152,8 @@ class wing(object):
         #self.thick36 = [i * thickness36 for i in self.chordArray2]
         #print self.thick36
 
-        pl.plot(self.yy,self.thickness)
-        pl.savefig(self.dirname + "/" +"thickness")
+        plt.plot(self.yy, self.thickness)
+        plt.savefig(self.dirname + "/" + "thickness")
 
     # Analyzes the wing object
     # -----------------------------------------------
@@ -541,17 +541,17 @@ class wing(object):
 
         x2 = x1 + x1[::-1]
         y2 = y1 + y2[::-1]
-        pl.figure(figsize=(12,4))
+        plt.figure(figsize=(12, 4))
         self.planx = x2
         self.plany = y2
-        pl.plot(x2,y2)
+        plt.plot(x2, y2)
         xcp0 = self.chordArray2[len(self.xcpArray)-1] * (1.0 - self.xcpArray[len(self.xcpArray)-1])
-        pl.plot([0,self.span/2.],[xcp0,xcp0])
-        pl.axis("equal")
-        pl.xlabel("y [m]")
-        pl.ylabel("x [m]")
-        pl.legend(("planform","pressure center"))
-        pl.savefig(self.dirname + "/" +"testwing")
+        plt.plot([0, self.span / 2.], [xcp0, xcp0])
+        plt.axis("equal")
+        plt.xlabel("y [m]")
+        plt.ylabel("x [m]")
+        plt.legend(("planform", "pressure center"))
+        plt.savefig(self.dirname + "/" + "testwing")
 #        pl.clf()
 
 
@@ -666,35 +666,35 @@ if __name__ == '__main__':
             power = iomod.gen_result(testWing,testBody,testTail)
             zz.append([j, k, power])
         #"""
-            pl.clf()
-            pl.figure(figsize=(8,8))
-            pl.plot(testWing.CD,testWing.CL,'o')
+            plt.clf()
+            plt.figure(figsize=(8, 8))
+            plt.plot(testWing.CD, testWing.CL, 'o')
 
             testWing.calc_variedaoa(velocity,temperature,aoaarray)
-            pl.plot(testWing.CDarray,testWing.CLarray)
-            pl.plot(testWing.xmaxLDline,testWing.ymaxLDline)
-            pl.xlim(xmin=0)
-            pl.ylim(ymin=0)
-            pl.xlabel("CD")
-            pl.ylabel("CL")
-            pl.legend(("Design Cruise Point","Polar Curve","maxL/D line"))
-            pl.savefig(testWing.dirname + "/" +"PolarCurbe.png")
+            plt.plot(testWing.CDarray, testWing.CLarray)
+            plt.plot(testWing.xmaxLDline, testWing.ymaxLDline)
+            plt.xlim(xmin=0)
+            plt.ylim(ymin=0)
+            plt.xlabel("CD")
+            plt.ylabel("CL")
+            plt.legend(("Design Cruise Point", "Polar Curve", "maxL/D line"))
+            plt.savefig(testWing.dirname + "/" + "PolarCurbe.png")
 
-            pl.clf()
-            pl.plot(aoaarray,testWing.CDarray)
-            pl.savefig(testWing.dirname + "/" +"alpha-CD.png")
+            plt.clf()
+            plt.plot(aoaarray, testWing.CDarray)
+            plt.savefig(testWing.dirname + "/" + "alpha-CD.png")
 
-            pl.clf()
-            pl.plot(aoaarray,testWing.CLarray)
-            pl.savefig(testWing.dirname + "/" +"alpha-CL.png")
+            plt.clf()
+            plt.plot(aoaarray, testWing.CLarray)
+            plt.savefig(testWing.dirname + "/" + "alpha-CL.png")
 
 
 
     print zz
     zz = np.array(zz).transpose()
-    CS = pl.contourf(zz[0], zz[1], zz[2])
-    pl.clabel(CS, inline=1, fontsize=10)
-    pl.title('Required power by AR and S')
-    pl.savefig("contour.png")
+    CS = plt.contourf(zz[0], zz[1], zz[2])
+    plt.clabel(CS, inline=1, fontsize=10)
+    plt.title('Required power by AR and S')
+    plt.savefig("contour.png")
 
     #"""
