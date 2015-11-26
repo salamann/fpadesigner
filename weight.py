@@ -1,23 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#-------------------------------------------------------------------------------
-# Name:        Calculation Aircraft Weight
-# Purpose:
-#
-# Author:      shunyo ogawa
-#
-# Created:     31/03/2013
-# Copyright:   (c) shunyo 2013
-# Licence:     MIT
-#-------------------------------------------------------------------------------
 
-def calc_weight(span,airfoil):
+import numpy as np
+
+
+def calc_weight(span, airfoil):
     if airfoil == "DAE31":
         ff = 1.04
     elif airfoil == "DAE21" or airfoil == "FX76-MP140":
         ff = 1.02
     elif airfoil == "FX76-MP160":
         ff = 1.00
+    else:
+        raise ValueError("There is no wing foil you selected.")
 
     weight_wing = ff * 0.0101 * span ** 2. + 0.1137 *span + 1.1324
 
@@ -49,16 +44,15 @@ def calc_weight(span,airfoil):
     #---------------
     weight_others = 16.#15.699
 
-    weight_wing2nd = Wing2(span)
+    weight_wing2nd = wing2(span)
     weight_htail = htail(3)
     weight_vtail = vtail(2)
-    summation = sum([weight_wing,weight_pilot,weight_others,weight_wing2nd,weight_htail,weight_vtail])
+    summation = sum([weight_wing, weight_pilot, weight_others, weight_wing2nd, weight_htail, weight_vtail])
 
     return summation
 
-def Wing2(span):
-    import numpy
 
+def wing2(span):
     max_code = 1.2        #矩形部での翼弦長[m]
     min_code = 0.6        #翼端での翼弦長[m]
     spar_pos = 0.3        #桁位置
@@ -109,11 +103,11 @@ def Wing2(span):
     def sum_taper_scale(num):
         length_scale = 0
         area_scale = 0
-        for i in range(1,int(num)):
+        for i in range(1, int(num)):
             taper_code = max_code-(max_code-min_code)*tape_rib2rib*i/taper_span
             length_scale += taper_code
             area_scale += (taper_code/max_code)*(taper_code/max_code)
-        return [length_scale,area_scale,taper_code]
+        return [length_scale, area_scale, taper_code]
 
     taper_scale = sum_taper_scale(tape_rib_num)
 
@@ -145,7 +139,7 @@ def Wing2(span):
     DAE21= 0.12412  #直径 #%36%かな？T-MITの古いプログラムから引用
     DAE31= 0.10889 #[m]
 
-    chokei = DAE21*numpy.pi
+    chokei = DAE21*np.pi
     bond = 0.200 #接着剤重量[kg/m2]
     rectbondweight = chokei * rib_thick * rect_rib_num
     tapebondweight = chokei * rib_thick * tape_rib_num
@@ -233,11 +227,11 @@ def htail(span):
     def sum_taper_scale(num):
         length_scale = 0
         area_scale = 0
-        for i in range(1,int(num)):
+        for i in range(1, int(num)):
             taper_code = max_code-(max_code-min_code)*tape_rib2rib*i/taper_span
             length_scale += taper_code
             area_scale += (taper_code/max_code)*(taper_code/max_code)
-        return [length_scale,area_scale,taper_code]
+        return [length_scale, area_scale, taper_code]
 
     taper_scale = sum_taper_scale(tape_rib_num)
     #print rect_rib_num,tape_rib_num
@@ -277,8 +271,8 @@ def htail(span):
     #桁重量
     pipeweight = span * 0.1
 
-    import numpy
-    chokei = 0.03*numpy.pi
+
+    chokei = 0.03*np.pi
     bond = 0.200 #接着剤重量[kg/m2]
     rectbondweight = chokei * rib_thick * rect_rib_num
     tapebondweight = chokei * rib_thick * tape_rib_num
@@ -304,6 +298,7 @@ def htail(span):
     #print "Weight(1.3)%0.3f [kg]" % summation
 
     return summation
+
 
 def vtail(span):
     # ラダー重量推算
@@ -369,18 +364,18 @@ def vtail(span):
     rear_cap_weight = rear_cap_area*max_code2 * balsa_thick * rho_balsa #後縁キャップ
 
     ##テーパ部の積算係数
-    def sum_taper_scale(num,min_code,tape_rib2rib,taper_span):
+    def sum_taper_scale(num, min_code, tape_rib2rib, taper_span):
         length_scale = 0
         area_scale = 0
         taper_code = 0
-        for i in range(1,int(num)):
+        for i in range(1, int(num)):
             taper_code = max_code-(max_code-min_code)*tape_rib2rib*i/taper_span
             length_scale += taper_code
             area_scale += (taper_code/max_code)*(taper_code/max_code)
-        return [length_scale,area_scale,taper_code]
+        return [length_scale, area_scale, taper_code]
 
-    taper_scale_u = sum_taper_scale(tape_rib_num_u,min_code_u,tape_rib2rib_u,taper_span_u)
-    taper_scale_l = sum_taper_scale(tape_rib_num_l,min_code_l,tape_rib2rib_l,taper_span_l)
+    taper_scale_u = sum_taper_scale(tape_rib_num_u, min_code_u, tape_rib2rib_u, taper_span_u)
+    taper_scale_l = sum_taper_scale(tape_rib_num_l, min_code_l, tape_rib2rib_l, taper_span_l)
 
     #print rect_rib_num,tape_rib_num
 
@@ -422,8 +417,8 @@ def vtail(span):
     sum_bond = bond*(rectangle_span+taper_span_u+taper_span_l)
     #print sum_bond
 
-    import numpy
-    chokei = 0.03*numpy.pi
+
+    chokei = 0.03*np.pi
     bond = 0.200 #接着剤重量[kg/m2]
     rectbondweight = chokei * rib_thick * rect_rib_num
     tapebondweight = chokei * rib_thick * tape_rib_num_l
@@ -458,6 +453,6 @@ def vtail(span):
 
 if __name__ == '__main__':
     #スパンを入れる
-    Wing2(33.54)
+    wing2(33.54)
     htail(3)
     vtail(2)
