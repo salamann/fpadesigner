@@ -11,36 +11,32 @@
 # Licence:     MIT
 #-------------------------------------------------------------------------------
 
-import matplotlib.pyplot as plt
+import numpy as np
+import pylab as pl
 
-def draw_spandirdata(yy, dL, clDist, circDist, ellipse, inducedAoa, planx, plany, dirname):
-    plt.figure(figsize=(12, 10))
-    plt.axis("equal")
+def draw_spandirdata(yy,dL,clDist,circDist,ellipse,inducedAoa,planx,plany,dirname):
+    pl.figure(figsize=(12,10))
+    pl.axis("equal")
+    pl.subplot(511)
+    pl.plot(yy,dL,label = "dL")
+    pl.legend()
+    pl.subplot(512)
+    pl.plot(yy,clDist,label = "dCL")
+    pl.legend()
+    pl.subplot(513)
+    pl.plot(yy,circDist,label = "Gamma")
+    pl.plot(yy,ellipse,label = "Ideal")
+    pl.legend()
+    pl.subplot(514)
+    pl.plot(yy,inducedAoa,label = "Alpha_i")
 
-    plt.subplot(511)
-    plt.plot(yy, dL, label="dL")
-    plt.legend()
-
-    plt.subplot(512)
-    plt.plot(yy, clDist, label="dCL")
-    plt.legend()
-
-    plt.subplot(513)
-    plt.plot(yy, circDist, label="Gamma")
-    plt.plot(yy, ellipse, label="Ideal")
-    plt.legend()
-
-    plt.subplot(514)
-    plt.plot(yy, inducedAoa, label="Alpha_i")
-    plt.legend()
-
-    plt.subplot(515)
-    plt.plot(planx, plany, label="Planform")
-    plt.legend()
-    plt.xlabel("y [m]")
-    plt.legend()
-
-    plt.savefig(dirname + "/" +"span")
+    pl.legend()
+    pl.subplot(515)
+    pl.plot(planx,plany,label = "Planform")
+    pl.legend()
+    pl.xlabel("y [m]")
+    pl.legend()
+    pl.savefig(dirname + "/" +"span")
 
 if __name__ == '__main__':
     pass
