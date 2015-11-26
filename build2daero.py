@@ -13,8 +13,8 @@ from scipy.optimize import basinhopping
 #-----------------
 #importing handmade modules
 #-----------------
-import iomod
-import postmod
+import io_fpa
+import post_process_operation
 import weight
 
 
@@ -29,7 +29,7 @@ class wing(object):
     def __init__(self, sourceFile, halfStep, surface, aspect, optflag=0):
         self._sourceFile = sourceFile
         self.halfStep = halfStep
-        data = iomod.readcsv(self._sourceFile)
+        data = io_fpa.readcsv(self._sourceFile)
         #self.surface = data[5][0]
         #self.aspect = data[5][1]
         self.surface = surface
@@ -118,7 +118,7 @@ class wing(object):
         from scipy.interpolate import interp1d
 
         #open airfoil data
-        data = iomod.open2read(self.XFOILdirectory + "/" + "foil.dat")
+        data = io_fpa.open2read(self.XFOILdirectory + "/" + "foil.dat")
 
         #make airfoil list
         xlist = [float(i.split()[0]) for i in data[1:]]
@@ -227,7 +227,7 @@ class wing(object):
                 txtFile = txtFile+'0'
 
             self.XFOILfile = '/'+txtFile+'.txt'
-            data = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
+            data = io_fpa.read_data(self.XFOILdirectory + self.XFOILfile)
         #内挿すべきとき たとえば0.84
         else:
             txtFile = str(rey1-0.1)
@@ -236,7 +236,7 @@ class wing(object):
             for i in range(4-len(txtFile)):
                 txtFile = txtFile+'0'
             self.XFOILfile = '/'+txtFile+'.txt'
-            data1 = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
+            data1 = io_fpa.read_data(self.XFOILdirectory + self.XFOILfile)
 
             txtFile = str(rey1)
             if len(txtFile)==1:
@@ -244,7 +244,7 @@ class wing(object):
             for i in range(4-len(txtFile)):
                 txtFile = txtFile+'0'
             self.XFOILfile = '/'+txtFile+'.txt'
-            data2 = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
+            data2 = io_fpa.read_data(self.XFOILdirectory + self.XFOILfile)
 
             data = (data2-data1)*(rey2-rey1)/(float(str(rey1 + 0.1))-rey1)+data1
 
@@ -640,7 +640,7 @@ if __name__ == '__main__':
             #
             #
             testWing.calc_planform()
-            postmod.draw_spandirdata(testWing.yy,testWing.dL,testWing.clDist,testWing.circDist,testWing.ellipse,testWing.inducedAoa,testWing.planx,testWing.plany,testWing.dirname)
+            post_process_operation.draw_spandirdata(testWing.yy, testWing.dL, testWing.clDist, testWing.circDist, testWing.ellipse, testWing.inducedAoa, testWing.planx, testWing.plany, testWing.dirname)
 
             #print "total weight  ",ww
 
@@ -651,7 +651,7 @@ if __name__ == '__main__':
             testTail = tail(velocity,temperature)
             testTail.calc_htaildrag(2.0)
             testTail.calc_vtaildrag(1.5)
-            power = iomod.gen_result(testWing,testBody,testTail)
+            power = io_fpa.gen_result(testWing, testBody, testTail)
             zz.append([j, k, power])
         #"""
             pl.clf()

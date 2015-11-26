@@ -11,6 +11,8 @@ def calc_weight(span, airfoil):
         ff = 1.02
     elif airfoil == "FX76-MP160":
         ff = 1.00
+    else:
+        raise ValueError("There is no wing foil you selected.")
 
     weight_wing = ff * 0.0101 * span ** 2. + 0.1137 *span + 1.1324
 
@@ -45,7 +47,7 @@ def calc_weight(span, airfoil):
     weight_wing2nd = wing2(span)
     weight_htail = htail(3)
     weight_vtail = vtail(2)
-    summation = sum([weight_wing,weight_pilot,weight_others,weight_wing2nd,weight_htail,weight_vtail])
+    summation = sum([weight_wing, weight_pilot, weight_others, weight_wing2nd, weight_htail, weight_vtail])
 
     return summation
 
