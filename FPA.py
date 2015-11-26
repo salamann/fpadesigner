@@ -175,7 +175,7 @@ class Wing(object):
         self.airDensity = 1.28912 - 0.004122391 * self.temperature
         return self.Re
 
-    def calc_lift_slope_array(self, start_angle=-3.0, end_angle=4.0):
+    def calc_lift_slope_and_zero_lift_array(self, start_angle=-3.0, end_angle=4.0):
         """
         揚力傾斜をRe数ごと(スパン方向ごと)に計算
         This method is to calculate lift slope
@@ -203,94 +203,14 @@ class Wing(object):
         self.lift_slope_array = lift_slope_array
         self.zero_lift_angle_array = zero_lift_angle_array
 
-
-        # datas = [self.calc_interpolate(i) for i in self.Re / 10 ** 6.]
-
-        # lift_slope_array = []
-        # for data in datas:
-        #     start_angle = -3 #deg
-        #     end_angle = 4 #deg
-        #
-        #     slope, intercept, r_value, p_value, std_err = stats.linregress(np.radians(data.transpose()[0][start_angle+10:end_angle+10]), data.transpose()[1][start_angle+10:end_angle+10])
-        #     lift_slope_array.append(slope)
-        # self.lift_slope_array = lift_slope_array
-
-    # def calc_zeroLiftAngle(self, data):
-    #     """
-    #     This method is to calculate zero lift angle of attack.
-    #     :param data:
-    #     :return:
-    #     """
-    #     from scipy import stats
-    #
-    #     #揚力傾斜を出すのに使う迎角範囲
-    #     start_angle = 0 #deg
-    #     end_angle = 5 #deg
-    #
-    #     slope, intercept, r_value, p_value, std_err = stats.linregress(np.radians(data.transpose()[0][start_angle+10:end_angle+10]),data.transpose()[1][start_angle+10:end_angle+10])
-    #     self.zeroLiftAngle = - data[10][1] / slope
-    #
-    #     return self.zeroLiftAngle
-
-    #ゼロ揚力角の配列の計算
-    # def calc_zero_lift_angle_array(self):
-    #     cl = self.aerodynamics_2d_data["CL"]
-    #     alpha = np.radians(self.aerodynamics_2d_data["alpha"])
-    #     func = interp2d(alpha[0], np.arange(0, 1.01, 0.1), cl, kind='linear')
-    #     data = func(alpha[0], self.Re / 10 ** 6.)
-    #     """
-    #     Calculate the range that is used for getting regression curve for lift slope.
-    #     """
-    #     start_index = np.where(alpha[0] == np.radians([-3.0]))[0]
-    #     end_index = np.where(alpha[0] == np.radians([4.0]))[0]
-    #     zeroliftangleArray = []
-    #     for datum in data:
-    #         slope, intercept, r_value, p_value, std_err = stats.linregress(alpha[0][start_index:end_index],
-    #                                                                        datum[start_index:end_index])
-    #         zeroliftangleArray.append(-intercept / slope)
-    #     self.zeroliftangleArray = zeroliftangleArray
-
-    # def calc_interpolate(self, reynolds):
-    #     rey1 = round(reynolds, 1)
-    #     rey2 = round(reynolds, 2)
-    #
-    #     #レイノルズ数の小数点第2桁が0のとき,つまり内挿しなくていいとき 0.80とか
-    #     if rey1 == rey2:
-    #         txtFile = str(rey1)
-    #         if len(txtFile)==1:
-    #             txtFile+='.'
-    #         for i in range(4-len(txtFile)):
-    #             txtFile = txtFile+'0'
-    #
-    #         self.XFOILfile = '/'+txtFile+'.txt'
-    #         data = io_fpa.read_data(self.XFOILdirectory + self.XFOILfile)
-    #     #内挿すべきとき たとえば0.84
-    #     else:
-    #         txtFile = str(rey1-0.1)
-    #         if len(txtFile)==1:
-    #             txtFile+='.'
-    #         for i in range(4-len(txtFile)):
-    #             txtFile = txtFile+'0'
-    #         self.XFOILfile = '/'+txtFile+'.txt'
-    #         data1 = io_fpa.read_data(self.XFOILdirectory + self.XFOILfile)
-    #
-    #         txtFile = str(rey1)
-    #         if len(txtFile)==1:
-    #             txtFile+='.'
-    #         for i in range(4-len(txtFile)):
-    #             txtFile = txtFile+'0'
-    #         self.XFOILfile = '/'+txtFile+'.txt'
-    #         data2 = io_fpa.read_data(self.XFOILdirectory + self.XFOILfile)
-    #
-    #         data = (data2-data1)*(rey2-rey1)/(float(str(rey1 + 0.1))-rey1)+data1
-    #
-    #     return data
-
     def set_local_angle(self):
         self.local_angle = [self.angle - i for i in np.degrees(self.inducedAoa)]
 
-    #スパン方向のCD0の計算
     def calc_cd0_array(self):
+        """
+        スパン方向のCD0の計算
+        :return: None
+        """
         local_angles = self.local_angle #吹き下ろしを弾いた後の迎角配列
 
         cd = self.aerodynamics_2d_data["CD"]
@@ -302,26 +222,11 @@ class Wing(object):
             cd0_array.append(func(np.radians(local_angle), reynolds_number)[0])
         self.cd0Array = cd0_array
 
-        # start_index = np.where(alpha[0] == np.radians([-3.0]))[0]
-        # end_index = np.where(alpha[0] == np.radians([4.0]))[0]
-        # for datum in data:
-        #     slope, intercept, r_value, p_value, std_err = stats.linregress(alpha[0][start_index:end_index],
-        #                                                                    datum[start_index:end_index])
-        # self.lift_slope_array = lift_slope_array
-        # self.zero_lift_angle_array = zero_lift_angle_array
-        #
-        #
-        #
-        # datas = [self.calc_interpolate(i) for i in self.Re / 10 ** 6.]
-        # cd0Array = []
-        # for i in range(len(self.Re)):
-        #     #datas[i].transpose() #[0]と[2]でinterpolateする。
-        #     linear_interp = interp1d(datas[i].transpose()[0], datas[i].transpose()[2])
-        #     cd0Array.append(float(linear_interp(localangle[i])))
-        # self.cd0Array = cd0Array
-
-    #Calculate center of pressure
     def calc_xcp_array(self):
+        """
+        #Calculate center of pressure
+        :return: None
+        """
         local_angles = self.local_angle #吹き下ろしを弾いた後の迎角配列
         xcp = self.aerodynamics_2d_data["XCp"]
         alpha = np.radians(self.aerodynamics_2d_data["alpha"])
@@ -333,21 +238,11 @@ class Wing(object):
         self.xcp_array = xcp_array
         self.chord_cp_array = xcp_array * self.chordArray2
 
-
-        # from scipy.interpolate import interp1d
-        # datas = [self.calc_interpolate(i) for i in self.Re / 10 ** 6.]
-        #
-        # xcpArray = []
-        # for i in range(len(self.Re)):
-        #     linear_interp = interp1d(datas[i].transpose()[0], datas[i].transpose()[9])
-        #     xcpArray.append(float(linear_interp(local_angles[i])))
-        #
-        # self.xcpArray = xcpArray
-        # self.chordcpArray = xcpArray * self.chordArray2
-
-    #吹き下ろしの計算
-    #航空力学の基礎第2版 p.141 式3.97より
     def calc_downwash(self, thetas, An):
+        """
+        #吹き下ろしの計算
+        #航空力学の基礎第2版 p.141 式3.97より
+        """
         dwArray = []
         for theta in thetas:
             dw = sum([(2*i+1)*An[i] * np.sin((2*i+1)*theta) / np.sin(theta) for i in range(len(An))]) * self.velocity
@@ -372,7 +267,7 @@ class Wing(object):
 
         # μの計算。
         # self.liftSlopeArray[i] -> 5.5 で航空力学の基礎第2版 p.147の計算になる
-        self.calc_lift_slope_array()
+        self.calc_lift_slope_and_zero_lift_array()
         u = [self.lift_slope_array[i] * self.chordArray2[i] / 4.0 / self.span for i in range(len(self.chordArray2))]
 
         # 絶対迎角
@@ -521,7 +416,7 @@ class Wing(object):
         self.wingshape()
         #print self.chordArray2
         self.calc_reynolds(self.velocity, self.temperature)
-        self.calc_lift_slope_array()
+        self.calc_lift_slope_and_zero_lift_array()
         # self.calc_zero_lift_angle_array()
         self.calc_CL_Cdi_CD(3.)
         #print "calculating...",round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(x[6],1),round(self.L*9.80665/self.D,2)
@@ -542,7 +437,7 @@ class Wing(object):
         where wing area, airspeed, and weight are given.
         """
         self.calc_reynolds(self.velocity, self.temperature)
-        self.calc_lift_slope_array()
+        self.calc_lift_slope_and_zero_lift_array()
         # self.calc_zero_lift_angle_array()
         self.calc_CL_Cdi_CD(angle)
 
@@ -577,7 +472,7 @@ class Wing(object):
         CDarray = []
         for i in aoaarray:
             print "alpha = " + str(i) +" deg"
-            self.calc_lift_slope_array()
+            self.calc_lift_slope_and_zero_lift_array()
             # self.calc_zero_lift_angle_array()
             self.calc_CL_Cdi_CD(i)
             CLarray.append(self.CL)
