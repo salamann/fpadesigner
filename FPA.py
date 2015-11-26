@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.linalg import solve
 
-import iomod
-import postmod
+import io_fpa
+import post_process_operation
 import weight
 # Load wing configuration file and create "wing" instance
 #
@@ -22,7 +22,7 @@ class Wing(object):
     def __init__(self, sourceFile, halfStep, surface, aspect, optflag=0):
         self._sourceFile = sourceFile
         self.halfStep = halfStep
-        data = iomod.readcsv(self._sourceFile)
+        data = io_fpa.readcsv(self._sourceFile)
         #self.surface = data[5][0]
         #self.aspect = data[5][1]
         self.surface = surface
@@ -48,8 +48,9 @@ class Wing(object):
             self.wingshape()
 
     def wingshape(self):
-
-    # --- >> calc the chord array according to slices --
+        """
+        calc the chord array according to slices
+        """
         #スパン長の計算
         span = np.sqrt(self.aspect * self.surface)
         self.span = span
@@ -116,7 +117,7 @@ class Wing(object):
         from scipy.interpolate import interp1d
 
         #open airfoil data
-        data = iomod.open2read(self.XFOILdirectory + "/" + "foil.dat")
+        data = io_fpa.open2read(self.XFOILdirectory + "/" + "foil.dat")
 
         #make airfoil list
         xlist = [float(i.split()[0]) for i in data[1:]]
@@ -232,7 +233,7 @@ class Wing(object):
                 txtFile = txtFile+'0'
 
             self.XFOILfile = '/'+txtFile+'.txt'
-            data = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
+            data = io_fpa.read_data(self.XFOILdirectory + self.XFOILfile)
         #内挿すべきとき たとえば0.84
         else:
             txtFile = str(rey1-0.1)
@@ -241,7 +242,7 @@ class Wing(object):
             for i in range(4-len(txtFile)):
                 txtFile = txtFile+'0'
             self.XFOILfile = '/'+txtFile+'.txt'
-            data1 = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
+            data1 = io_fpa.read_data(self.XFOILdirectory + self.XFOILfile)
 
             txtFile = str(rey1)
             if len(txtFile)==1:
@@ -249,7 +250,7 @@ class Wing(object):
             for i in range(4-len(txtFile)):
                 txtFile = txtFile+'0'
             self.XFOILfile = '/'+txtFile+'.txt'
-            data2 = iomod.read_data(self.XFOILdirectory + self.XFOILfile)
+            data2 = io_fpa.read_data(self.XFOILdirectory + self.XFOILfile)
 
             data = (data2-data1)*(rey2-rey1)/(float(str(rey1 + 0.1))-rey1)+data1
 
@@ -450,7 +451,14 @@ class Wing(object):
     #Calculating integration of circulation
     def opt_circ(self, x):
         #self.shapeData = [[0.0, 100.0], [40.0, 100], [50., x[0]],[60, x[1]],[70, x[2]],[80, x[3]],[90, x[4]],[95, x[5]], [100.0, x[6]]]
-        self.shapeData = [[0.0, 100.0], [40.0, 100], [50., x[0]],[70, x[1]],[82, x[2]],[90, x[3]],[95, x[4]], [100.0, x[5]]]
+        self.shapeData = [[0.0, 100.0],
+                          [40.0, 100],
+                          [50., x[0]],
+                          [70, x[1]],
+                          [82, x[2]],
+                          [90, x[3]],
+                          [95, x[4]],
+                          [100.0, x[5]]]
         self.wingshape()
         #print self.chordArray2
         self.calc_reynolds(self.velocity, self.temperature)
@@ -458,7 +466,7 @@ class Wing(object):
         self.calc_zeroliftangleArray()
         self.calc_CL_Cdi_CD(3.)
         #print "calculating...",round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(x[6],1),round(self.L*9.80665/self.D,2)
-        print "calculating...",round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(self.L*9.80665/self.D,2), round(self.chordArray2[0],2)
+        print "calculating...", round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(self.L*9.80665/self.D,2), round(self.chordArray2[0],2)
         return round(self.eval_func*1000,1),round(self.W,1),round(x[0],1),round(x[1],1),round(x[2],1),round(x[3],1),round(x[4],1),round(x[5],1),round(self.L*9.80665/self.D,2), round(self.chordArray2[0],2)
         #
         #Use module shonw below if you do optimization
@@ -491,14 +499,13 @@ class Wing(object):
         self.calc_weight(objweight)
         from scipy import optimize
 
-        optimize.brenth(self.solve_CL,-5,10)
+        optimize.brenth(self.solve_CL, -5, 10)
 
     ##        L = self.L/9.81
 
     def calc_variedaoa(self, velocity, temperature, aoaarray):
-        """csvfile, number of cell, design cruise speed, ambient temperature
-
-
+        """
+        csvfile, number of cell, design cruise speed, ambient temperature
         """
         #testWing = wing(wingcsv,ncell)
         self.calc_reynolds(velocity, temperature)
