@@ -27,7 +27,7 @@ def calc_thickness_of_wing(XFOILdirectory, chordArray2):
     calculation wing thickness list
     """
     # open airfoil data
-    data = io_fpa.open2read(u"{}\\foil.dat".format(XFOILdirectory))
+    data = io_fpa.open2read(os.path.join(XFOILdirectory, "foil.dat"))
 
     # make airfoil list
     xlist = [float(i.split()[0]) for i in data[1:]]

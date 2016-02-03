@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+import os
 
 
 def readcsv(filename):
@@ -31,9 +32,9 @@ def open2read(filename):
     :param filename:
     :return:
     """
-    data1 = open(filename)
-    lines = data1.readlines()
-    data1.close()
+    with open(os.path.relpath(filename), "r") as data1:
+        lines = data1.readlines()
+    # data1.close()
     return lines
 
 

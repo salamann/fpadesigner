@@ -3,6 +3,7 @@ This module enables XLFR5 data to numpy.array.
 """
 
 import numpy as np
+import os
 # import matplotlib.pyplot as plt
 
 
@@ -12,7 +13,8 @@ def read_xflr5_data(wing_foil_name):
     tmpdict = {i: [] for i in headers}
 
     for reynolds_number in reynolds_numbers:
-        data = np.genfromtxt(u"{}\\{:.2f}.txt".format(wing_foil_name, reynolds_number), skip_header=11).transpose()
+        data = np.genfromtxt(os.path.join(wing_foil_name, "{:.2f}.txt".format(reynolds_number)),
+                             skip_header=11).transpose()
         for header, datum in zip(headers, data):
             tmpdict[header].append(datum)
     return {i: np.array(tmpdict[i]) for i in tmpdict}
