@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+from scipy import optimize
 from scipy import stats
 from scipy.interpolate import interp2d, interp1d
 from scipy.linalg import solve
-from scipy import optimize
 
 import io_fpa
 from aerodynamics_2d import read_xflr5_data
@@ -27,7 +26,7 @@ def calc_thickness_of_wing(XFOILdirectory, chordArray2):
     calculation wing thickness list
     """
     # open airfoil data
-    data = io_fpa.open2read(os.path.join(XFOILdirectory, "foil.dat"))
+    data = io_fpa.open2read(os.path.join("data", XFOILdirectory, "foil.dat"))
 
     # make airfoil list
     xlist = [float(i.split()[0]) for i in data[1:]]
@@ -110,9 +109,11 @@ class Wing(object):
         #    pass#self.shapeData = directshape
         # elif optflag == 0:
         #    self.shapeData = data[9:]
-        self.dirname = str(self.XFOILdirectory) + "S" + str(self.surface) + "AR" + str(self.aspect)
-        if not os.path.isdir(self.dirname):
-            os.mkdir(self.dirname)
+        self.dirname = "{}_S{}m2_AR{}".format(self.XFOILdirectory, self.surface, self.aspect)
+        if not os.path.isdir("results"):
+            os.mkdir("results")
+            if not os.path.isdir(os.path.join("results", self.dirname)):
+                os.mkdir(os.path.join("results", self.dirname))
 
         if optflag == 1:
             pass
@@ -488,7 +489,7 @@ class Wing(object):
     ##        L = self.L/9.81
 
     def set_aerodynamcis_data(self):
-        self.aerodynamics_2d_data = read_xflr5_data(self.XFOILdirectory)
+        self.aerodynamics_2d_data = read_xflr5_data(os.path.join("data", self.XFOILdirectory))
 
     # TODO: グラフを描くための機能と迎角を振るための機能が混じっている
     def calc_variedaoa(self, velocity, temperature, aoaarray):
@@ -555,7 +556,7 @@ class Wing(object):
         plt.xlabel("y [m]")
         plt.ylabel("x [m]")
         plt.legend(("planform", "pressure center"))
-        plt.savefig(self.dirname + "/" + "testwing")
+        plt.savefig(os.path.join("results", "{}".format(self.dirname), "testwing"))
 #        pl.clf()
 
 

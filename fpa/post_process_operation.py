@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import matplotlib.pyplot as plt
-
+import os
 
 def draw_spandirdata(yy, dL, clDist, circDist, ellipse, inducedAoa, planx, plany, dirname):
     plt.figure(figsize=(12, 10))
@@ -25,7 +25,7 @@ def draw_spandirdata(yy, dL, clDist, circDist, ellipse, inducedAoa, planx, plany
     plt.legend()
     plt.xlabel("y [m]")
     plt.legend()
-    plt.savefig(dirname + "/" + "span")
+    plt.savefig(os.path.join("results", dirname, "span"))
 
 if __name__ == '__main__':
     pass

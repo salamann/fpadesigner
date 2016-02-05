@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from FPA import Wing
 import weight
-import post_process_operation
+from fpa import post_process_operation
+from fpa.FPA import Wing
 
 if __name__ == '__main__':
     number_cell = 40

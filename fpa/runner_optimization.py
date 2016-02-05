@@ -3,12 +3,12 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from FPA import Wing
-from tail import Tail
-from body import Body
+
 import weight
-import io_fpa
-import post_process_operation
+from body import Body
+from fpa import io_fpa, post_process_operation
+from fpa.FPA import Wing
+from tail import Tail
 
 if __name__ == '__main__':
     # 4分割で航空力学の基礎第2版 p.147の計算になる
