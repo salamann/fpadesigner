@@ -1,0 +1,7 @@
+data/
+results/
+build/
+dist/
+fpa.egg-info/
+notebook/
+tests/
