@@ -15,3 +15,7 @@ class Tail(object):
         CDvtail = 0.008
         self.vtailDrag = CDvtail * vtailArea * self.dynpres
         self.vtailPower = self.vtailDrag * self.velocity
+
+
+if __name__ == '__main__':
+    pass

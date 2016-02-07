@@ -12,13 +12,9 @@ from scipy.linalg import solve
 import io_fpa
 from aerodynamics_2d import read_xflr5_data
 
+"""
 
-# Load wing configuration file and create "wing" instance
-#
-# -----------------------------------------------
-# sourceFile  - source csv file created by following structure
-# analyzeStep - analyze slice steps スパン方向の分割数
-# -----------------------------------------------
+"""
 
 
 def calc_thickness_of_wing(XFOILdirectory, chordArray2):
@@ -98,7 +94,7 @@ class Wing(object):
 
         self._sourceFile = sourceFile
         self.halfStep = halfStep
-        data = io_fpa.readcsv(self._sourceFile)
+        data = io_fpa.readcsv("fpa/{}".format(self._sourceFile))
         #self.surface = data[5][0]
         #self.aspect = data[5][1]
         self.surface = surface
@@ -510,7 +506,7 @@ class Wing(object):
         CLarray = []
         CDarray = []
         for i in aoaarray:
-            print "alpha = {} [deg]".format(str(i))
+            print "calculating aerodynamics at alpha = {} [deg]".format(str(i))
             self.calc_lift_slope_and_zero_lift_array()
             self.calc_CL_Cdi_CD(i)
             CLarray.append(self.CL)
@@ -558,7 +554,14 @@ class Wing(object):
         plt.legend(("planform", "pressure center"))
         plt.savefig(os.path.join("results", "{}".format(self.dirname), "testwing"))
 #        pl.clf()
-
+#
+#     def calc(self, temperature, velocity):
+#         wing.set_temperature(temperature)
+#         wing.set_velocity(velocity)
+#         wing.calc_reynolds()
+#         wing.set_aerodynamcis_data()
+#         wing.calc_lift_slope_and_zero_lift_array()
+#         wing.calc_CL_Cdi_CD(angle_of_attack)
 
 if __name__ == '__main__':
     pass

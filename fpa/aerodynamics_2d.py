@@ -24,3 +24,8 @@ def read_xflr5_data(wing_foil_name):
 #     plt.plot(tmpdict["alpha"][j], tmpdict["Cm"][j], label="Reynolds={}".format(j))
 # plt.legend(loc=2, fontsize="x-small")
 # plt.show()
+
+
+if __name__ == '__main__':
+    pass
+

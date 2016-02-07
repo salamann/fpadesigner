@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+
 class Air(object):
     def __init__(self, temperature):
         self.kinetic_viscosty = 1.34 * 10 ** - 5. + 9.31477 * 10 ** - 8. * temperature
@@ -8,3 +9,7 @@ class Air(object):
 
     def get_dynamic_pressure(self, airspeed):
         self.dynamic_pressure = 0.5 * self.airdensity * airspeed ** 2.0
+
+
+if __name__ == '__main__':
+    pass

@@ -17,3 +17,7 @@ class Body(object):
         CDframe = 0.1
         self.frameDrag = CDframe * framearea * self.dynpres
         self.framePower = self.frameDrag * self.velocity
+
+
+if __name__ == '__main__':
+    pass

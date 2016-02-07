@@ -3,7 +3,7 @@
 
 import numpy as np
 import os
-
+import csv
 
 def readcsv(filename):
     """
@@ -12,7 +12,6 @@ def readcsv(filename):
 
     filename - filepath and filename
     """
-    import csv
     data = []
     csvfile = file(filename)
     reader = csv.reader(csvfile)
